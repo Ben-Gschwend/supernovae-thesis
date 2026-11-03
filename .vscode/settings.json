@@ -1,0 +1,25 @@
+{
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/Praktikum_Datenzubereitung/*.npz": true,
+    "**/Praktikum_Datenzubereitung/*.gif": true,
+    "**/Praktikum_Datenzubereitung/*.log": true,
+    "**/Praktikum_Datenzubereitung/*.png": true,
+    "**/Praktikum_Datenzubereitung/*.csv": true,
+    "**/Praktikum_Datenzubereitung/*.mp4": true,
+    "**/Praktikum_Datenzubereitung/*.html": true
+  },
+  "search.exclude": {
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/Praktikum_Datenzubereitung/*.npz": true,
+    "**/Praktikum_Datenzubereitung/*.gif": true,
+    "**/Praktikum_Datenzubereitung/*.log": true,
+    "**/Praktikum_Datenzubereitung/*.png": true,
+    "**/Praktikum_Datenzubereitung/*.csv": true,
+    "**/Praktikum_Datenzubereitung/*.mp4": true,
+    "**/Praktikum_Datenzubereitung/*.html": true
+  }
+}
