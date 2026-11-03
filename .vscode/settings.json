@@ -9,7 +9,8 @@
     "**/Praktikum_Datenzubereitung/*.png": true,
     "**/Praktikum_Datenzubereitung/*.csv": true,
     "**/Praktikum_Datenzubereitung/*.mp4": true,
-    "**/Praktikum_Datenzubereitung/*.html": true
+    "**/Praktikum_Datenzubereitung/*.html": true,
+    "**/*.html": true
   },
   "search.exclude": {
     "**/.venv": true,
@@ -20,6 +21,7 @@
     "**/Praktikum_Datenzubereitung/*.png": true,
     "**/Praktikum_Datenzubereitung/*.csv": true,
     "**/Praktikum_Datenzubereitung/*.mp4": true,
-    "**/Praktikum_Datenzubereitung/*.html": true
+    "**/Praktikum_Datenzubereitung/*.html": true,
+    "**/*.html": true
   }
 }

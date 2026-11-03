@@ -12,6 +12,7 @@ Praktikum_Datenzubereitung/*.png
 Praktikum_Datenzubereitung/*.csv
 Praktikum_Datenzubereitung/*.mp4
 Praktikum_Datenzubereitung/*.html
+*.html
 
 # Local editor and OS files
 .DS_Store
