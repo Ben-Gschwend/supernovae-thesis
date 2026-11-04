@@ -956,3 +956,22 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   ohne CPU-Einschränkung gestartet und erzeugte CUDA-OOM-Warnungen beim
   Geräteprüfen, startete aber keine Simulation; die eigentliche Validierung
   erfolgt CPU-only. Kein weiterer GPU-Lauf gestartet.
+
+## 2026-11-04 – Impliziter Faktor-25-Lauf ebenfalls instabil
+
+- **Lauf:** Nach erneuter ausdrücklicher Freigabe wurde auf GPU 7 ein Lauf mit
+  `128^3` Zellen, Amplitude `9.0`, Cooling-Faktor `25.0` und
+  `--cooling-method implicit` gestartet. Snapshots waren aktiviert.
+- **Ergebnis:** Die Integration wurde numerisch ungültig, bevor ein gültiger
+  Datensatz geschrieben werden konnte. Die neue Validierung brach beim
+  `final_state` mit einer verständlichen `RuntimeError`-Meldung ab; es wurde
+  keine gültige NPZ-Ausgabe erzeugt.
+- **Interpretation:** Der Wechsel von explizitem zu implizitem Cooling löst das
+  Problem nicht. Faktor 25 senkt den Druck so stark, dass die anschließende
+  Hydrodynamik in sehr stark supersonische Zustände gerät und negative oder
+  nicht-endliche thermodynamische Werte erzeugt. Die Stabilitätsgrenze liegt
+  daher nicht nur in der Cooling-Zeitintegration.
+- **Nächste Optionen:** Cooling-Faktor reduzieren, `CFL` verkleinern und/oder
+  astronomix-Positivitätsschutz beziehungsweise flux-preserving Limiting
+  aktivieren. Ein weiterer GPU-Lauf wurde nach diesem Fehlschlag nicht
+  automatisch gestartet.
