@@ -1028,3 +1028,15 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Supernova-Ausbreitung physikalisch als weiterhin aktiv angenommen. Für einen
   adiabatischen Vergleich müsste ein separater Lauf mit explizit deaktiviertem
   Cooling erzeugt werden.
+
+## 2026-11-04 – Fehler beim Speichern der Cooling-Metadaten korrigiert
+
+- **Fehler:** Die Supernova-Integration mit 120 Snapshots erreichte auf GPU 7
+  `100 %`, brach danach aber beim Speichern mit `NameError: cooling_enabled`
+  ab. Deshalb wurde keine vollständige Supernova-NPZ-Datei erzeugt.
+- **Korrektur:** `cooling_enabled` wird nun explizit an
+  `_save_central_slices()` übergeben. Der Fehler betraf nur den Speicherschritt;
+  die numerische Integration selbst war bis zum Ende gelaufen.
+- **Prüfung:** Python-Kompilierung und `git diff --check` erfolgreich. Kein
+  neuer GPU-Lauf durch Codex gestartet. Für die GIF-Erzeugung muss der Nutzer
+  die Supernova-Phase einmal erneut mit denselben Parametern starten.

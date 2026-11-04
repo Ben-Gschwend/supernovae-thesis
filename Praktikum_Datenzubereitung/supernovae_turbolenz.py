@@ -349,6 +349,7 @@ def _save_central_slices(
     medium_time: float,
     duration: float,
     injected_energy: float,
+    cooling_enabled: bool,
 ) -> Path:
     states = np.asarray(snapshots.states)
     local_time_points = np.asarray(snapshots.time_points, dtype=float)
@@ -479,6 +480,7 @@ def main() -> None:
         medium_time,
         args.duration,
         injected_energy,
+        cooling_enabled,
     )
 
 
