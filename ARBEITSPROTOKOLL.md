@@ -931,3 +931,28 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   die Energiebilanz ebenfalls verändern kann.
 - **Prüfung:** CPU-only-Auswertung der vorhandenen NPZ-Datei; keine neue
   Simulation gestartet.
+
+## 2026-11-04 – Faktor-25-Lauf erreicht Zielbereich, aber wurde numerisch ungültig
+
+- **Lauf:** Nach ausdrücklicher Nutzerfreigabe wurde auf GPU 7 ein weiterer
+  `128^3`-Lauf mit Amplitude `9.0`, explizitem Cooling und Faktor `25.0`
+  gestartet. Der Prozess meldete `100 %` und Exit-Code `0`.
+- **Datenprüfung:** Die gespeicherte Datei
+  `turbulent_medium_128cells_t5_kf25_amp9_cooling_factor25_gpu7.npz` ist
+  dennoch nicht als gültiges Ergebnis verwendbar. Die Snapshots bis ungefähr
+  `t=1.09` sind endlich; danach werden `time_points` null beziehungsweise
+  `NaN`, und der Endzustand enthält `NaN`. Die Ursache ist ein numerisch zu
+  aggressiver expliziter Cooling-Term, nicht ein sauberer abgeschlossener
+  physikalischer Lauf.
+- **Zwischenergebnis:** In den gültigen frühen Snapshots erreicht der
+  charakteristische Quotient ungefähr `1.6...1.7`; das Ziel wird also
+  grundsätzlich erreicht, aber die Simulation bleibt nicht bis `t=5` stabil.
+- **Codeänderung:** `anfangsmedium.py` besitzt nun die Option
+  `--cooling-method {explicit,implicit}`. Zusätzlich werden nicht-endliche
+  Zustände sowie ungültige oder nicht streng ansteigende Snapshotzeiten vor
+  dem Speichern abgewiesen. Die Standardmethode bleibt für Reproduzierbarkeit
+  `explicit`; für Faktor 25 soll die implizite Methode getestet werden.
+- **Prüfung:** Syntax-/CLI-Prüfung erfolgreich. Die CLI-Prüfung wurde zuerst
+  ohne CPU-Einschränkung gestartet und erzeugte CUDA-OOM-Warnungen beim
+  Geräteprüfen, startete aber keine Simulation; die eigentliche Validierung
+  erfolgt CPU-only. Kein weiterer GPU-Lauf gestartet.

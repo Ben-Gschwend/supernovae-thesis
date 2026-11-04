@@ -44,6 +44,7 @@ from astronomix._modules._cooling.cooling_options import (
     CoolingCurveConfig,
     CoolingParams,
     EXPLICIT_COOLING,
+    IMPLICIT_COOLING,
     SIMPLE_POWER_LAW,
     SimplePowerLawParams,
 )
@@ -138,6 +139,15 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=1e-6,
         help="Untere Temperaturgrenze in den Codeeinheiten.",
+    )
+    parser.add_argument(
+        "--cooling-method",
+        choices=("explicit", "implicit"),
+        default="explicit",
+        help=(
+            "Zeitintegration des Cooling-Terms. Die implizite Variante ist "
+            "bei starkem Cooling robuster."
+        ),
     )
     parser.add_argument(
         "--protection-density-threshold",
@@ -248,9 +258,12 @@ def build_simulation(args: argparse.Namespace):
             reference_temperature=args.cooling_reference_temperature,
         ),
     )
+    cooling_method = (
+        IMPLICIT_COOLING if args.cooling_method == "implicit" else EXPLICIT_COOLING
+    )
     cooling_config = CoolingConfig(
         cooling=args.cooling,
-        cooling_method=EXPLICIT_COOLING,
+        cooling_method=cooling_method,
         cooling_curve_config=CoolingCurveConfig(
             cooling_curve_type=SIMPLE_POWER_LAW,
         ),
@@ -329,6 +342,21 @@ def save_turbulent_medium(
         )
 
     primitive_state = np.asarray(result.final_state)
+    if not np.all(np.isfinite(primitive_state)):
+        raise RuntimeError(
+            "astronomix hat einen nicht-endlichen final_state zurückgegeben. "
+            "Der Lauf ist numerisch ungültig und wird nicht gespeichert."
+        )
+    time_points = np.asarray(result.time_points)
+    if (
+        time_points.ndim != 1
+        or not np.all(np.isfinite(time_points))
+        or np.any(np.diff(time_points) <= 0.0)
+    ):
+        raise RuntimeError(
+            "astronomix hat ungültige oder nicht streng ansteigende time_points "
+            "zurückgegeben. Der Lauf wird nicht als gültiges Medium gespeichert."
+        )
     metadata = {
         "purpose": "turbulent_initial_medium_before_supernova",
         "forcing": "ornstein_uhlenbeck",
@@ -346,7 +374,7 @@ def save_turbulent_medium(
         "forcing_amplitude": float(args.forcing_amplitude),
         "cooling": bool(args.cooling),
         "cooling_model": "simple_power_law",
-        "cooling_method": "explicit",
+        "cooling_method": args.cooling_method,
         "cooling_factor": float(args.cooling_factor),
         "cooling_exponent": float(args.cooling_exponent),
         "cooling_reference_temperature": float(
@@ -370,7 +398,7 @@ def save_turbulent_medium(
     arrays = {
         "primitive_state": primitive_state,
         "final_time": np.asarray(float(params.t_end)),
-        "time_points": np.asarray(result.time_points),
+        "time_points": time_points,
         "metadata_json": np.asarray(json.dumps(metadata, sort_keys=True)),
     }
     for field in ("total_mass", "total_energy", "internal_energy", "kinetic_energy"):
@@ -380,7 +408,13 @@ def save_turbulent_medium(
 
     states = getattr(result, "states", None)
     if states is not None:
-        arrays["states"] = np.asarray(states)
+        states = np.asarray(states)
+        if not np.all(np.isfinite(states)):
+            raise RuntimeError(
+                "astronomix hat nicht-endliche Snapshotwerte zurückgegeben. "
+                "Der Lauf wird nicht als gültiger Snapshot-Datensatz gespeichert."
+            )
+        arrays["states"] = states
 
     np.savez_compressed(output_path, **arrays)
     print(f"Gespeichertes turbulentes Anfangsmedium: {output_path}")
