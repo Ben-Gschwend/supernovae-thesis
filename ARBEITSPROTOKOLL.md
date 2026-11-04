@@ -1001,3 +1001,30 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **GPU/Laufzeit:** GPU 7 wurde nach ausdrücklicher Nutzerfreigabe verwendet;
   eine genaue Laufzeit wurde nicht separat gemessen. Die Auswertung danach
   erfolgte CPU-only.
+
+## 2026-11-04 – Cooling aus dem Faktor-15-Medium in die Supernova-Phase übernehmen
+
+- **Ziel:** Die Supernova soll ab dem gültigen turbulenten Zustand bei `t=5`
+  bis `t=5.1` simuliert werden, wobei die während der Medium-Erzeugung
+  verwendete Cooling-Konfiguration auch in Phase 2 aktiv bleibt.
+- **Ausgangsdatensatz:**
+  `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_kf25_amp9_cooling_factor15_implicit_cfl02_gpu7.npz`
+  mit Amplitude `9.0`, `CFL=0.2`, implizitem Cooling und Faktor `15.0`.
+- **Codeänderung:** `Praktikum_Datenzubereitung/supernovae_turbolenz.py`
+  liest Cooling-Modell, Methode, Faktor, Exponent, Referenztemperatur und
+  Temperaturboden aus den Medium-Metadaten und verwendet diese Werte für die
+  Supernova-Phase. Die OU-Forcierung bleibt in Phase 2 deaktiviert. Zusätzlich
+  werden nicht-endliche Zustände und ungültige Snapshot-Zeitpunkte vor dem
+  Speichern abgewiesen; die Cooling-Parameter werden in der Ausgabedatei
+  dokumentiert.
+- **Parameter des vorgesehenen Laufs:** `duration=0.1`, `120` Snapshots,
+  Explosionsenergie `1.0`, Explosionsradius `0.01`, Glättung `2.0` Zellen und
+  `CFL=0.2`. Die Ausgabe wird unter einem neuen Dateinamen gespeichert, damit
+  vorhandene Ergebnisse nicht überschrieben werden.
+- **Prüfungen:** Python-Kompilierung, CLI-Hilfe und isolierte Erstellung der
+  impliziten Cooling-Konfiguration mit Faktor `15.0` erfolgreich. Es wurde
+  keine Simulation und kein GPU-Lauf durch Codex gestartet.
+- **Annahme/offener Punkt:** Das Cooling wird während der kurzen
+  Supernova-Ausbreitung physikalisch als weiterhin aktiv angenommen. Für einen
+  adiabatischen Vergleich müsste ein separater Lauf mit explizit deaktiviertem
+  Cooling erzeugt werden.

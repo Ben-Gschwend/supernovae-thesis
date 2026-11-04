@@ -34,6 +34,15 @@ from astronomix import (
 from astronomix._modules._turbulent_forcing._turbulent_forcing_options import (
     TurbulentForcingConfig,
 )
+from astronomix._modules._cooling.cooling_options import (
+    CoolingConfig,
+    CoolingCurveConfig,
+    CoolingParams,
+    EXPLICIT_COOLING,
+    IMPLICIT_COOLING,
+    SIMPLE_POWER_LAW,
+    SimplePowerLawParams,
+)
 from astronomix.option_classes.simulation_config import (
     BoundarySettings,
     BoundarySettings1D,
@@ -122,6 +131,52 @@ def _periodic_boundaries() -> BoundarySettings:
     return BoundarySettings(x=periodic, y=periodic, z=periodic)
 
 
+def _cooling_from_metadata(metadata: dict):
+    """Erzeuge die Phase-2-Cooling-Konfiguration aus dem Medium-Metadatum."""
+
+    if not bool(metadata.get("cooling", False)):
+        return CoolingConfig(), CoolingParams(), False
+
+    model = metadata.get("cooling_model", "simple_power_law")
+    if model != "simple_power_law":
+        raise ValueError(
+            "Das Medium verwendet ein nicht unterstütztes Cooling-Modell: "
+            f"{model!r}."
+        )
+
+    method_name = metadata.get("cooling_method", "explicit")
+    if method_name == "implicit":
+        method = IMPLICIT_COOLING
+    elif method_name == "explicit":
+        method = EXPLICIT_COOLING
+    else:
+        raise ValueError(
+            "Unbekannte Cooling-Methode in den Medium-Metadaten: "
+            f"{method_name!r}."
+        )
+
+    cooling_config = CoolingConfig(
+        cooling=True,
+        cooling_method=method,
+        cooling_curve_config=CoolingCurveConfig(
+            cooling_curve_type=SIMPLE_POWER_LAW,
+        ),
+    )
+    cooling_params = CoolingParams(
+        floor_temperature=float(
+            metadata.get("cooling_floor_temperature", 1e-6)
+        ),
+        cooling_curve_params=SimplePowerLawParams(
+            factor=float(metadata.get("cooling_factor", 1.0)),
+            exponent=float(metadata.get("cooling_exponent", 1.0)),
+            reference_temperature=float(
+                metadata.get("cooling_reference_temperature", 1.0)
+            ),
+        ),
+    )
+    return cooling_config, cooling_params, True
+
+
 def _next_available_path(output_path: Path) -> Path:
     """Schütze vorhandene Ergebnisdateien vor dem Überschreiben."""
 
@@ -189,6 +244,10 @@ def _build_phase_two(
     else:
         boundary_settings = _periodic_boundaries()
 
+    cooling_config, cooling_params, cooling_enabled = _cooling_from_metadata(
+        metadata
+    )
+
     config = SimulationConfig(
         geometry=CARTESIAN,
         dimensionality=3,
@@ -204,6 +263,7 @@ def _build_phase_two(
             ou_forcing=False,
             vacuum_protection=False,
         ),
+        cooling_config=cooling_config,
         return_snapshots=True,
         num_snapshots=args.num_snapshots,
         snapshot_settings=SnapshotSettings(
@@ -266,6 +326,7 @@ def _build_phase_two(
         t_end=args.duration,
         C_cfl=cfl,
         gamma=gamma,
+        cooling_params=cooling_params,
     )
     return (
         config,
@@ -274,6 +335,9 @@ def _build_phase_two(
         state_with_explosion,
         medium_time,
         injected_energy,
+        cooling_enabled,
+        cooling_config,
+        cooling_params,
     )
 
 
@@ -295,6 +359,19 @@ def _save_central_slices(
         )
     if len(local_time_points) != states.shape[0]:
         raise ValueError("Anzahl der Zeitpunkte und Zustände stimmt nicht überein.")
+    if not np.all(np.isfinite(states)):
+        raise RuntimeError(
+            "Die Supernova-Snapshots enthalten nicht-endliche Werte. "
+            "Die Phase 2 ist numerisch ungültig und wird nicht gespeichert."
+        )
+    if (
+        not np.all(np.isfinite(local_time_points))
+        or np.any(np.diff(local_time_points) <= 0.0)
+    ):
+        raise RuntimeError(
+            "Die lokalen Supernova-Zeitpunkte sind ungültig oder nicht "
+            "streng ansteigend."
+        )
 
     nx, ny, nz = states.shape[2:]
     if not (nx == ny == nz):
@@ -323,6 +400,23 @@ def _save_central_slices(
             "pressure_index": pressure_index,
         },
         "injected_energy": float(injected_energy),
+        "cooling": bool(cooling_enabled),
+        "cooling_model": metadata.get("cooling_model") if cooling_enabled else None,
+        "cooling_method": metadata.get("cooling_method") if cooling_enabled else None,
+        "cooling_factor": metadata.get("cooling_factor") if cooling_enabled else None,
+        "cooling_exponent": (
+            metadata.get("cooling_exponent") if cooling_enabled else None
+        ),
+        "cooling_reference_temperature": (
+            metadata.get("cooling_reference_temperature")
+            if cooling_enabled
+            else None
+        ),
+        "cooling_floor_temperature": (
+            metadata.get("cooling_floor_temperature")
+            if cooling_enabled
+            else None
+        ),
     }
     absolute_time_points = medium_time + local_time_points
     np.savez_compressed(
@@ -352,12 +446,22 @@ def main() -> None:
         state_with_explosion,
         medium_time,
         injected_energy,
+        cooling_enabled,
+        cooling_config,
+        cooling_params,
     ) = _build_phase_two(primitive_state, metadata, args)
 
     print(f"Geladenes turbulentes Medium: {args.input}")
     print(f"Supernova-Startzeit: t={medium_time:g}")
     print(f"Supernova-Endzeit: t={medium_time + args.duration:g}")
     print(f"OU-Forcierung in Phase 2: {config.turbulent_forcing_config.turbulent_forcing}")
+    print(f"Cooling in Phase 2: {cooling_enabled}")
+    if cooling_enabled:
+        print(
+            "Cooling-Parameter in Phase 2: "
+            f"Methode={metadata.get('cooling_method')}, "
+            f"Faktor={metadata.get('cooling_factor')}"
+        )
     print(f"Normierte zusätzliche Explosionsenergie: {injected_energy:.8g}")
     print("Starte die Supernova-Phase im vollständigen 3D-Zustand.")
 
