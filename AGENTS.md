@@ -155,6 +155,11 @@ geändert wurde und wie es geprüft wurde. Bei wissenschaftlichen Aussagen
 keine Genauigkeit oder physikalische Gültigkeit behaupten, die nicht durch
 Daten, Tests oder Quellen belegt ist.
 
+- Bei abgeschlossenen oder stabilen wesentlichen Arbeitsschritten den Nutzer
+  ausdrücklich an einen passenden `commit` und anschließend gegebenenfalls
+  `push` erinnern. Commits und Pushes niemals ohne ausdrücklichen Auftrag
+  selbst ausführen.
+
 ## Aktueller Stand der Snapshot-Animation (2026-10-26)
 
 - Das 2D-Simulationsskript liegt unter `Praktikum_Datenzubereitung/Supernovae_2D.py`.
@@ -162,7 +167,7 @@ Daten, Tests oder Quellen belegt ist.
 - Das 2D-Skript muss aus dem Verzeichnis `Praktikum_Datenzubereitung` gestartet werden, weil es `Supernova_plot.py` direkt importiert:
 
   ```bash
-  cd /export/home/bgschwen/pdemu/Praktikum_Bachelorarbeit_Supernovae/Praktikum_Datenzubereitung
+  cd /export/home/bgschwen/supernovae-thesis/Praktikum_Datenzubereitung
   python -u Supernovae_2D.py
   ```
 
@@ -187,14 +192,14 @@ Daten, Tests oder Quellen belegt ist.
 - CPU-only-Start aus dem Projekt-Hauptverzeichnis:
 
   ```bash
-  cd /export/home/bgschwen/pdemu/Praktikum_Bachelorarbeit_Supernovae
+  cd /export/home/bgschwen/supernovae-thesis
   JAX_PLATFORMS=cpu /export/home/bgschwen/micromamba/envs/pde/bin/python -u -m Praktikum_Datenzubereitung.Supernovae_1D
   ```
 
   Danach, erst wenn der 1D-Lauf vollständig beendet ist:
 
   ```bash
-  cd /export/home/bgschwen/pdemu/Praktikum_Bachelorarbeit_Supernovae
+  cd /export/home/bgschwen/supernovae-thesis
   JAX_PLATFORMS=cpu /export/home/bgschwen/micromamba/envs/pde/bin/python -u -m Praktikum_Datenzubereitung.Supernovae_3D
   ```
 

@@ -39,6 +39,14 @@ from astronomix._modules._turbulent_forcing._turbulent_forcing_options import (
     TurbulentForcingConfig,
     TurbulentForcingParams,
 )
+from astronomix._modules._cooling.cooling_options import (
+    CoolingConfig,
+    CoolingCurveConfig,
+    CoolingParams,
+    EXPLICIT_COOLING,
+    SIMPLE_POWER_LAW,
+    SimplePowerLawParams,
+)
 from astronomix.option_classes.simulation_config import (
     BoundarySettings,
     BoundarySettings1D,
@@ -98,6 +106,38 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=1.0,
         help="Beschleunigungsamplitude der OU-Forcierung.",
+    )
+    parser.add_argument(
+        "--cooling",
+        action="store_true",
+        help=(
+            "Aktiviere den expliziten dimensionslosen Power-Law-Cooling-Term. "
+            "Ohne diese Option bleibt das Medium adiabatisch."
+        ),
+    )
+    parser.add_argument(
+        "--cooling-factor",
+        type=float,
+        default=1.0,
+        help="Faktor Lambda_0 der dimensionslosen Cooling-Kurve.",
+    )
+    parser.add_argument(
+        "--cooling-exponent",
+        type=float,
+        default=1.0,
+        help="Exponent der dimensionslosen Cooling-Kurve.",
+    )
+    parser.add_argument(
+        "--cooling-reference-temperature",
+        type=float,
+        default=1.0,
+        help="Referenztemperatur T_ref in den Codeeinheiten.",
+    )
+    parser.add_argument(
+        "--cooling-floor-temperature",
+        type=float,
+        default=1e-6,
+        help="Untere Temperaturgrenze in den Codeeinheiten.",
     )
     parser.add_argument(
         "--protection-density-threshold",
@@ -176,6 +216,12 @@ def build_simulation(args: argparse.Namespace):
         raise ValueError("--correlation-time muss positiv sein.")
     if args.forcing_wavenumber <= 0.0 or args.forcing_amplitude <= 0.0:
         raise ValueError("Forcierungswellenzahl und -amplitude müssen positiv sein.")
+    if args.cooling_factor <= 0.0:
+        raise ValueError("--cooling-factor muss positiv sein.")
+    if args.cooling_reference_temperature <= 0.0:
+        raise ValueError("--cooling-reference-temperature muss positiv sein.")
+    if args.cooling_floor_temperature <= 0.0:
+        raise ValueError("--cooling-floor-temperature muss positiv sein.")
 
     forcing_config = TurbulentForcingConfig(
         turbulent_forcing=True,
@@ -194,6 +240,21 @@ def build_simulation(args: argparse.Namespace):
         forcing_wavenumber=args.forcing_wavenumber,
         forcing_amplitude=args.forcing_amplitude,
     )
+    cooling_params = CoolingParams(
+        floor_temperature=args.cooling_floor_temperature,
+        cooling_curve_params=SimplePowerLawParams(
+            factor=args.cooling_factor,
+            exponent=args.cooling_exponent,
+            reference_temperature=args.cooling_reference_temperature,
+        ),
+    )
+    cooling_config = CoolingConfig(
+        cooling=args.cooling,
+        cooling_method=EXPLICIT_COOLING,
+        cooling_curve_config=CoolingCurveConfig(
+            cooling_curve_type=SIMPLE_POWER_LAW,
+        ),
+    )
 
     config = SimulationConfig(
         geometry=CARTESIAN,
@@ -208,6 +269,7 @@ def build_simulation(args: argparse.Namespace):
             _periodic_boundaries() if args.boundary == "periodic" else None
         ),
         turbulent_forcing_config=forcing_config,
+        cooling_config=cooling_config,
         return_snapshots=True,
         num_snapshots=args.num_snapshots,
         snapshot_settings=SnapshotSettings(
@@ -227,6 +289,7 @@ def build_simulation(args: argparse.Namespace):
         C_cfl=args.cfl,
         gamma=args.gamma,
         turbulent_forcing_params=forcing_params,
+        cooling_params=cooling_params,
     )
 
     registered_variables = get_registered_variables(config)
@@ -281,6 +344,15 @@ def save_turbulent_medium(
         "correlation_time": float(args.correlation_time),
         "forcing_wavenumber": float(args.forcing_wavenumber),
         "forcing_amplitude": float(args.forcing_amplitude),
+        "cooling": bool(args.cooling),
+        "cooling_model": "simple_power_law",
+        "cooling_method": "explicit",
+        "cooling_factor": float(args.cooling_factor),
+        "cooling_exponent": float(args.cooling_exponent),
+        "cooling_reference_temperature": float(
+            args.cooling_reference_temperature
+        ),
+        "cooling_floor_temperature": float(args.cooling_floor_temperature),
         "boundary": args.boundary,
         "vacuum_protection": True,
         "snapshots_saved": bool(args.save_snapshots),

@@ -5,6 +5,8 @@ noch nicht implementiert.
 """
 
 # TODO: Imports und SimulationConfig gemeinsam ausarbeiten.
+from pathlib import Path
+
 import jax.numpy as jnp
 from astronomix import (
     SimulationConfig, SimulationParams,
@@ -71,7 +73,11 @@ initial_state = construct_primitive_state(
 config = finalize_config(config, initial_state.shape)
 
 
-from Supernova_plot import animate_snapshots
+try:
+    from Praktikum_Datenzubereitung.Supernova_plot import animate_snapshots
+except ModuleNotFoundError:
+    # Kompatibilität mit dem dokumentierten Direktstart aus diesem Ordner.
+    from Supernova_plot import animate_snapshots
 
 # now we run the simulation
 snapshots = time_integration(
@@ -85,8 +91,7 @@ animate_snapshots(
     snapshots,
     registered_variables,
     field="pressure",
-    output_path="supernova_pressure.gif",
+    output_path=Path(__file__).resolve().parent / "supernova_pressure.gif",
     interval=100,
 )
 
- 

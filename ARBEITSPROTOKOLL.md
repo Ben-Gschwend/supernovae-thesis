@@ -680,6 +680,70 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Druck:** Die kombinierte logarithmische Druckskala bleibt unverändert.
 - **Prüfung:** Statische Syntaxprüfung; kein Simulationslauf gestartet.
 
+## 2026-11-03 – Logarithmische Geschwindigkeitsskala ergänzt
+
+- **Anlass:** Die lineare Geschwindigkeitsskala wurde durch die hohen Explosionsgeschwindigkeiten dominiert. In den vorhandenen 120 Supernova-Schnitten reicht das Maximum bis ungefähr `22.9`, während 99 % der Werte nur bis ungefähr `3.1` und das turbulente Medium überwiegend bis ungefähr `1.4` reichen.
+- **Geänderte Datei:** `Praktikum_Datenzubereitung/plot_supernovae_turbolenz.py`.
+- **Umsetzung:** Neue Standardoption `speed_scale=log-medium`. Die logarithmische Skala verwendet einen positiven Boden `speed_floor=0.01` und das 99. Perzentil des turbulenten Mediums als obere Referenz. Hohe Explosionsgeschwindigkeiten werden gesättigt; geringe Geschwindigkeiten erhalten deutlich mehr Farbauflösung.
+- **Prüfung:** Die vorhandene 120-Snapshot-NPZ-Datei wurde lesend statistisch ausgewertet. Die Plotdatei wurde syntaktisch geprüft; kein Simulationslauf gestartet.
+
+## 2026-11-03 – Geschwindigkeitsskala moderater eingestellt
+
+- **Anlass:** Der Geschwindigkeitsboden `0.01` verstärkte die niedrigen Geschwindigkeitsunterschiede zu stark.
+- **Änderung:** Der Standardwert `speed_floor` wurde auf `0.05` erhöht. Die logarithmische Skala bleibt erhalten, ist aber weniger aggressiv im unteren Bereich.
+- **Prüfung:** Statische Codeänderung; für die neue Darstellung ist nur ein erneuter Plotlauf erforderlich.
+
+## 2026-11-03 – Pfade und Imports an neues Repository angepasst
+
+- **Ziel:** Nach dem Umzug in `/export/home/bgschwen/supernovae-thesis` sollen Imports und Standardausgaben unabhängig vom alten Repositorypfad funktionieren und im Ordner `Praktikum_Datenzubereitung` liegen.
+- **Geänderte Dateien:** `Praktikum_Datenzubereitung/Supernovae_2D.py`, `Supernova_plot_1D.py` und `Supernova_plot_3D.py`.
+- **Änderungen:** Der 2D-Plotimport unterstützt nun sowohl den Modulstart aus dem Repository-Hauptverzeichnis als auch den dokumentierten Direktstart aus `Praktikum_Datenzubereitung`. Der 2D-Standardausgabepfad sowie die Defaultausgaben der 1D-/3D-Plotmodule werden über den tatsächlichen Skriptordner aufgelöst.
+- **Abgrenzung:** Bereits vorhandene explizite Ausgabeparameter und wissenschaftliche Ergebnisdateien wurden nicht überschrieben oder verschoben.
+- **Prüfung:** Anschließend wird eine vollständige Python-Syntaxprüfung durchgeführt; keine Simulation und keine GPU-Nutzung durch Codex.
+
+## 2026-11-03 – Geschwindigkeitsskala auf ursprüngliche lineare Darstellung zurückgesetzt
+
+- **Anlass:** Die logarithmische Geschwindigkeitsskala hob die kleinen Geschwindigkeiten stärker hervor als gewünscht.
+- **Änderung:** Die Standarddarstellung der Geschwindigkeit in `plot_supernovae_turbolenz.py` ist wieder linear über den globalen kombinierten Wertebereich. Die optionale logarithmische Variante bleibt im Code verfügbar, wird aber nicht mehr standardmäßig verwendet.
+- **Abgrenzung:** Die angepassten Pfade sowie die zweiseitig randverstärkte Dichteskala und die bisherige Druckskala bleiben unverändert.
+- **Prüfung:** Statische Syntaxprüfung; kein Simulationslauf gestartet.
+
+## 2026-11-03 – Moderate Potenzskala für geringe Geschwindigkeiten ergänzt
+
+- **Anlass:** Die lineare Geschwindigkeitsskala unterschied geringe Geschwindigkeiten zu wenig, während die logarithmische Skala zu stark verstärkte.
+- **Änderung:** `plot_supernovae_turbolenz.py` unterstützt nun `speed_scale=power` mit standardmäßigem `speed_gamma=0.5`. Die PowerNorm hebt niedrige Geschwindigkeiten moderat hervor und verwendet weiterhin den globalen Geschwindigkeitsbereich.
+- **Prüfung:** Statische Syntaxprüfung; keine Simulation und kein GPU-Lauf gestartet.
+
+## 2026-11-03 – Moderate logarithmische Druck-Kontrastskala ergänzt
+
+- **Anlass:** Die niedrigen Hintergrunddrücke waren trotz logarithmischer Skala gegenüber dem hohen Explosionsdruck zu schwer zu unterscheiden.
+- **Änderung:** `plot_supernovae_turbolenz.py` verwendet standardmäßig `pressure_contrast=0.5`. Die logarithmisch normierten Druckwerte werden dadurch im unteren Bereich stärker aufgefächert; hohe Explosionsdrücke werden stärker komprimiert. Mit `pressure_contrast=1.0` wird die reine ursprüngliche LogNorm wiederhergestellt.
+- **Prüfung:** Statische Syntaxprüfung; kein Simulationslauf gestartet.
+
+## 2026-11-03 – Fokussierte Druckskala für den Bereich p=1...10 ergänzt
+
+- **Datenbefund:** Der kombinierte Druckbereich der vorhandenen Daten reicht bis ungefähr `12300`; dadurch belegt der Bereich `p=1...10` nur einen kleinen Teil der logarithmischen Farbskala.
+- **Änderung:** `plot_supernovae_turbolenz.py` akzeptiert nun `--pressure-display-min` und `--pressure-display-max`. Werte außerhalb dieses Bereichs werden für die Darstellung gesättigt, die Daten selbst bleiben unverändert.
+- **Vorgesehene Darstellung:** Für den Hintergrundvergleich wird zunächst `p=0.3...10` empfohlen. Dadurch wird der Unterschied zwischen `p=1` und `p=10` auf einem großen Farbbereich sichtbar.
+- **Prüfung:** Die Druckdaten wurden lesend statistisch ausgewertet; kein Simulationslauf gestartet.
+
+## 2026-11-03 – Geschwindigkeitsstatistik auf Schallgeschwindigkeitsverhältnis umgestellt
+
+- **Ziel:** Die Darstellung soll nur die typische Geschwindigkeit des 3D-Mediums relativ zur Schallgeschwindigkeit zeigen.
+- **Geänderte Datei:** `Praktikum_Datenzubereitung/plot_mean_velocity.py`.
+- **Berechnung:** Für jeden Snapshot werden `mean_speed=<|v|>`, `mean_sound_speed=<sqrt(gamma*p/rho)>` und `speed_to_sound_ratio=mean_speed/mean_sound_speed` berechnet. Die Schallgeschwindigkeit wird lokal aus Druck, Dichte und `gamma` bestimmt und anschließend räumlich gemittelt.
+- **Entfernt:** Gemittelter Geschwindigkeitsvektor, Nettofluss, einzelne Geschwindigkeitskomponenten und RMS-Geschwindigkeit werden nicht mehr geplottet oder in die Statistik-CSV geschrieben.
+- **Darstellung:** Eine einzelne Kurve zeigt `mean_speed/mean_sound_speed`; eine gestrichelte Linie bei `1` markiert die Schallgeschwindigkeit.
+- **Prüfung:** Statische Syntaxprüfung vorgesehen; keine Simulation und keine GPU-Nutzung durch Codex.
+
+## 2026-11-03 – Diagnoseplot für Geschwindigkeit und Schallgeschwindigkeit ergänzt
+
+- **Ziel:** Den Abfall des Quotienten `mean_speed/mean_sound_speed` zeitlich auf seine Ursache untersuchen.
+- **Geänderte Datei:** `Praktikum_Datenzubereitung/plot_mean_velocity.py`.
+- **Darstellung:** Oberes Panel mit typischer Geschwindigkeit `mean_speed` und mittlerer Schallgeschwindigkeit `mean_sound_speed`; unteres Panel mit deren Quotienten und einer Referenzlinie bei `1`.
+- **CSV:** Die numerischen Zeitreihen bleiben unverändert verfügbar und enthalten weiterhin `time`, `mean_speed`, `mean_sound_speed` und `speed_to_sound_ratio`.
+- **Prüfung:** Statische Syntaxprüfung; keine Simulation und keine GPU-Nutzung durch Codex.
+
 ## 2026-11-03 – Neue Vergleichsvariante mit dreifacher Forcierungsamplitude geplant
 
 - **Ziel:** Den Einfluss einer stärkeren Anfangsturbulenz auf die Supernova-Ausbreitung untersuchen.
@@ -693,3 +757,102 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Änderung:** Der Standardwert `slowdown_factor` in `plot_supernovae_turbolenz.py` wurde von `4` auf `2` gesetzt. Damit wird die Darstellung ab `t=4.98` doppelt so schnell wie zuvor abgespielt.
 - **Abgrenzung:** Die Anzahl der physikalischen Supernova-Snapshots wird dadurch nicht verändert; nur die Wiederholungsdauer der GIF-Frames ändert sich.
 - **Prüfung:** Statische Codeänderung; kein Simulationslauf gestartet.
+
+## 2026-11-03 – Cooling-Option für Vergleichsläufe ergänzt
+
+- **Ziel:** Einen adiabatischen Referenzlauf mit `64^3` Zellen und einen zweiten
+  Lauf mit `128^3` Zellen und aktiviertem Cooling vorbereiten.
+- **Ausgangslage:** `anfangsmedium.py` verwendete bisher ausschließlich die
+  adiabatische Konfiguration. Die installierte `astronomix`-Version besitzt
+  jedoch einen Cooling-Zweig mit `CoolingConfig`, `CoolingParams` und einer
+  einfachen Power-Law-Kühlkurve.
+- **Änderung:** `Praktikum_Datenzubereitung/anfangsmedium.py` akzeptiert nun
+  `--cooling` sowie die reproduzierbaren Parameter
+  `--cooling-factor`, `--cooling-exponent`,
+  `--cooling-reference-temperature` und
+  `--cooling-floor-temperature`. Das Cooling ist standardmäßig aus und wird
+  erst mit `--cooling` aktiviert. Die gewählten Cooling-Parameter werden in
+  den Metadaten gespeichert.
+- **Modellannahme:** Für die dimensionslosen Projektgrößen wird zunächst eine
+  explizite Power-Law-Kurve mit `Lambda(T)=1*T`, `T_ref=1` und einem Boden von
+  `10^-6` verwendet. Die astronomix-Standardwerte mit `T_floor=10^4` würden
+  in diesem Codeeinheitensystem praktisch kein Cooling auslösen. Diese Wahl
+  ist ein numerischer Vergleichsversuch und keine astrophysikalische
+  Kalibrierung.
+- **Prüfung:** Python-Syntax und CLI-Hilfe erfolgreich geprüft. Es wurde kein
+  Simulations- oder GPU-Lauf durch Codex gestartet. Die GPUs 6 und 7 wurden
+  vom Nutzer als frei gemeldet; die tatsächliche Auswahl für die manuellen
+  Läufe bleibt beim Nutzer.
+- **Offen:** Vor dem Lauf sollte bestätigt werden, dass diese dimensionslose
+  Cooling-Annahme gewünscht ist. Cooling-Faktor und Cooling-Zeitskala sind
+  wissenschaftlich nicht aus den bisherigen Projektparametern festgelegt.
+
+## 2026-11-03 – Geschwindigkeitsplot des 64³-Mediums erzeugt
+
+- **Datensatz:** `Praktikum_Datenzubereitung/turbulent_medium_64cells_t5_kf25_amp3_gpu6.npz`.
+- **Auswertung:** `plot_mean_velocity.py` berechnete aus den gespeicherten
+  32 Snapshots die typische Geschwindigkeit, die mittlere lokale
+  Schallgeschwindigkeit `sqrt(gamma*p/rho)` und deren Quotienten.
+- **Ergebnisse:** PNG und CSV wurden unter den Namen
+  `turbulent_velocity_statistics_64cells_amp3_gpu6` im Ordner
+  `Praktikum_Datenzubereitung` gespeichert. Die typische Geschwindigkeit
+  erreicht ungefähr `0.58`, während der Quotient im Verlauf von etwa `0.39`
+  auf `0.20` fällt.
+- **Prüfung:** Der erzeugte PNG-Plot wurde visuell kontrolliert. Es wurde kein
+  Simulations- oder GPU-Lauf gestartet.
+
+## 2026-11-04 – Geschwindigkeitsplot des 128³-Cooling-Mediums erzeugt
+
+- **Datensatz:** `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_kf25_amp3_cooling_gpu7.npz`.
+- **Auswertung:** `plot_mean_velocity.py` wurde CPU-only auf die gespeicherten
+  Medium-Snapshots angewendet. Berechnet wurden typische Geschwindigkeit,
+  mittlere lokale Schallgeschwindigkeit und deren Quotient.
+- **Ergebnisse:** PNG und CSV wurden unter den Namen
+  `turbulent_velocity_statistics_128cells_amp3_cooling_gpu7` in
+  `Praktikum_Datenzubereitung` gespeichert. Der Quotient erreicht anfänglich
+  ungefähr `0.52` und liegt am Ende bei ungefähr `0.39`; damit bleibt das
+  Medium in dieser Statistik subsonisch.
+- **Prüfung:** Der erzeugte PNG-Plot wurde visuell kontrolliert. Es wurde kein
+  Simulations- oder GPU-Lauf gestartet.
+
+## 2026-11-04 – Amp9-Cooling-Lauf bei 68,2 % abgebrochen
+
+- **Versuch:** `128^3` Zellen, `t=0...5`, `gamma=5/3`, `CFL=0.4`, Seed 42,
+  `k_f=25`, Forcing-Amplitude `9.0`, explizites Power-Law-Cooling mit
+  `factor=1`, `exponent=1`, `T_ref=1` und `T_floor=10^-6` auf GPU 7. Die
+  GPU war vom Nutzer als frei angegeben.
+- **Verlauf:** Der Nutzer brach den Lauf bei `68,2 %` mit `Ctrl+C` ab. Der
+  anschließende `KeyboardInterrupt` innerhalb eines JAX-Callbacks erklärt die
+  lange Traceback-Kette; ein eigenständiger numerischer Fehler ist daraus
+  nicht abzuleiten.
+- **Backend:** astronomix meldete den Fallback auf `NATIVE_JAX`, weil keine
+  sichtbare GPU mit Compute Capability `>=8.0` erkannt wurde. Dadurch ist der
+  Lauf voraussichtlich deutlich langsamer als mit dem PALLAS/Triton-Backend.
+- **Ausgabe:** Es läuft kein Simulationsprozess mehr, und es wurde keine
+  vollständige NPZ-Datei erzeugt. Im geposteten Befehl fehlte außerdem
+  `--save-snapshots`; für einen späteren Velocity-Plot muss diese Option beim
+  Neustart gesetzt werden.
+- **Offen:** Der Lauf muss bei Bedarf vollständig neu gestartet werden; ein
+  Fortsetzen bei `68,2 %` ist mit dem aktuellen Skript nicht möglich.
+
+## 2026-11-04 – Amp9-Cooling-Lauf erfolgreich durch Codex überwacht
+
+- **Lauf:** Der zuvor abgebrochene Lauf wurde nach ausdrücklicher Freigabe des
+  Nutzers erneut auf GPU 7 gestartet: `128^3` Zellen, `t=0...5`, Seed 42,
+  `k_f=25`, Forcing-Amplitude `9.0`, `CFL=0.4`, periodische Randbedingungen,
+  explizites Power-Law-Cooling mit `factor=1`, `exponent=1`, `T_ref=1` und
+  `T_floor=10^-6`.
+- **Ausgabe:** `--save-snapshots` war aktiviert. Der Lauf erreichte `100 %`
+  ohne Exception und speicherte
+  `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_kf25_amp9_cooling_gpu7.npz`.
+  Die Datei enthält `states` in der Form `(5, 128, 128, 128)` sowie die
+  erwarteten Cooling-Metadaten.
+- **Diagnose:** Die vorherige Abbruchstelle bei `68,2 %` wurde überschritten
+  und der Lauf erfolgreich beendet. Damit ist kein reproduzierbarer Fehler in
+  der Simulation nachgewiesen; wahrscheinlich war der vorherige Lauf durch
+  `Ctrl+C` beziehungsweise das nicht reagierende Frontend beendet worden.
+  astronomix verwendete weiterhin den `NATIVE_JAX`-Fallback, weil GPU 7 nicht
+  als Compute-Capability-`>=8.0` für PALLAS/Triton erkannt wurde.
+- **Laufzeit:** Nicht separat mit einer Stoppuhr erfasst; der überwachte
+  Rechenlauf dauerte mehrere Minuten. GPU 7 wurde ausschließlich für diesen
+  vom Nutzer freigegebenen Simulationszweck verwendet.

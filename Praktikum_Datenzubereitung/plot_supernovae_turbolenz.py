@@ -45,7 +45,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation, PillowWriter
-from matplotlib.colors import LogNorm, Normalize
+from matplotlib.colors import LogNorm, Normalize, PowerNorm
 
 
 def _next_available_path(output_path: Path) -> Path:
@@ -169,12 +169,18 @@ def save_supernovae_turbolenz_gif(
     pressure_scale: str = "combined",
     pressure_low_percentile: float = 0.0,
     pressure_high_percentile: float = 100.0,
+    pressure_contrast: float = 0.5,
+    pressure_display_min: float | None = None,
+    pressure_display_max: float | None = None,
     density_scale: str = "log-two-sided",
     density_low_percentile: float = 1.0,
     density_high_percentile: float = 99.0,
     density_contrast: float = 1.0,
     density_tail_exponent: float = 0.35,
     density_center: float | None = None,
+    speed_scale: str = "power",
+    speed_floor: float = 0.05,
+    speed_gamma: float = 0.5,
 ) -> Path:
     """Speichere die gemeinsame Medium-/Supernova-Schnittanimation."""
 
@@ -190,6 +196,12 @@ def save_supernovae_turbolenz_gif(
         raise ValueError(
             "Die Druck-Perzentile müssen 0 <= niedrig < hoch <= 100 erfüllen."
         )
+    if pressure_contrast <= 0.0:
+        raise ValueError("pressure_contrast muss positiv sein.")
+    if pressure_display_min is not None and pressure_display_min <= 0.0:
+        raise ValueError("pressure_display_min muss positiv sein.")
+    if pressure_display_max is not None and pressure_display_max <= 0.0:
+        raise ValueError("pressure_display_max muss positiv sein.")
     if not 0.0 <= density_low_percentile < density_high_percentile <= 100.0:
         raise ValueError(
             "Die Dichte-Perzentile müssen 0 <= niedrig < hoch <= 100 erfüllen."
@@ -208,6 +220,15 @@ def save_supernovae_turbolenz_gif(
         raise ValueError("density_contrast muss positiv sein.")
     if density_tail_exponent <= 0.0:
         raise ValueError("density_tail_exponent muss positiv sein.")
+    if speed_scale not in {"linear", "power", "log-medium", "log-combined"}:
+        raise ValueError(
+            "speed_scale muss 'linear', 'power', 'log-medium' oder "
+            "'log-combined' sein."
+        )
+    if speed_floor <= 0.0:
+        raise ValueError("speed_floor muss positiv sein.")
+    if speed_gamma <= 0.0:
+        raise ValueError("speed_gamma muss positiv sein.")
 
     states, medium_times, medium_metadata = _load_medium(Path(medium_input))
     supernova, supernova_metadata = _load_supernova(Path(supernova_input))
@@ -276,7 +297,25 @@ def save_supernovae_turbolenz_gif(
         raise ValueError(
             "density_center muss bei log-two-sided zwischen den Dichtegrenzen liegen."
         )
-    speed_min, speed_max = float(np.min(finite_speed)), float(np.max(finite_speed))
+    if speed_scale in {"linear", "power"}:
+        speed_reference = finite_speed
+    elif speed_scale == "log-medium":
+        speed_reference = medium_vx * 0.0 + np.sqrt(
+            medium_vx**2 + medium_vy**2 + medium_vz**2
+        )
+        speed_reference = speed_reference[
+            np.isfinite(speed_reference) & (speed_reference > 0.0)
+        ]
+    else:
+        speed_reference = finite_speed[finite_speed > 0.0]
+    if speed_reference.size == 0:
+        raise ValueError("Es gibt keine positiven Geschwindigkeiten für die Skala.")
+    speed_min = float(np.min(finite_speed))
+    speed_max = (
+        float(np.max(speed_reference))
+        if speed_scale in {"linear", "power"}
+        else float(np.percentile(speed_reference, 99.0))
+    )
     if pressure_scale == "medium":
         pressure_reference = medium_pressure[
             np.isfinite(medium_pressure) & (medium_pressure > 0.0)
@@ -287,6 +326,12 @@ def save_supernovae_turbolenz_gif(
         pressure_reference = positive_pressure
     pressure_min = float(np.percentile(pressure_reference, pressure_low_percentile))
     pressure_max = float(np.percentile(pressure_reference, pressure_high_percentile))
+    if pressure_display_min is not None:
+        pressure_min = float(pressure_display_min)
+    if pressure_display_max is not None:
+        pressure_max = float(pressure_display_max)
+    if pressure_min >= pressure_max:
+        raise ValueError("pressure_display_min muss kleiner als pressure_display_max sein.")
     if density_min == density_max:
         density_max = density_min + 1.0
     if speed_min == speed_max:
@@ -359,6 +404,58 @@ def save_supernovae_turbolenz_gif(
         density_tick_values = np.concatenate((lower_ticks, upper_ticks))
         density_colorbar_ticks = transform_density(density_tick_values)
         density_colorbar_labels = [f"{value:.3g}" for value in density_tick_values]
+    pressure_colorbar_ticks = None
+    pressure_colorbar_labels = None
+    if pressure_contrast == 1.0:
+        pressure_for_display = pressure
+        pressure_norm = LogNorm(pressure_min, pressure_max, clip=True)
+    else:
+        log_pressure_min = np.log10(pressure_min)
+        log_pressure_range = np.log10(pressure_max) - log_pressure_min
+        if log_pressure_range <= 0.0:
+            log_pressure_range = 1.0
+        safe_pressure = np.maximum(pressure, pressure_min)
+        normalized_pressure = np.clip(
+            (np.log10(safe_pressure) - log_pressure_min) / log_pressure_range,
+            0.0,
+            1.0,
+        )
+        pressure_for_display = normalized_pressure**pressure_contrast
+        pressure_norm = Normalize(0.0, 1.0)
+        pressure_tick_values = np.geomspace(pressure_min, pressure_max, num=4)
+        pressure_colorbar_ticks = (
+            (np.log10(pressure_tick_values) - log_pressure_min)
+            / log_pressure_range
+        ) ** pressure_contrast
+        pressure_colorbar_labels = [f"{value:.3g}" for value in pressure_tick_values]
+    speed_colorbar_ticks = None
+    speed_colorbar_labels = None
+    if speed_scale == "linear":
+        speed_for_display = speed
+        speed_norm = Normalize(speed_min, speed_max)
+    elif speed_scale == "power":
+        speed_for_display = speed
+        speed_norm = PowerNorm(
+            gamma=speed_gamma,
+            vmin=speed_min,
+            vmax=speed_max,
+            clip=True,
+        )
+    else:
+        speed_log_min = np.log10(speed_floor)
+        speed_log_max = np.log10(speed_max + speed_floor)
+        if speed_log_max <= speed_log_min:
+            speed_log_max = speed_log_min + 1.0
+        speed_for_display = np.log10(np.maximum(speed, 0.0) + speed_floor)
+        speed_norm = Normalize(speed_log_min, speed_log_max, clip=True)
+        speed_tick_values = np.array(
+            [0.0, speed_floor, speed_max * 0.1, speed_max * 0.5, speed_max]
+        )
+        speed_tick_values = np.unique(
+            np.clip(speed_tick_values, 0.0, speed_max)
+        )
+        speed_colorbar_ticks = np.log10(speed_tick_values + speed_floor)
+        speed_colorbar_labels = [f"{value:.3g}" for value in speed_tick_values]
     if density_scale == "linear":
         density_title = r"Dichte $\rho$"
     elif density_scale == "log-two-sided":
@@ -367,11 +464,28 @@ def save_supernovae_turbolenz_gif(
         density_title = r"Dichte $\rho$ (logarithmisch)"
     fields = (
         (density_for_display, density_title, density_norm, "viridis"),
-        (speed, r"Geschwindigkeitsbetrag $|v|$", Normalize(speed_min, speed_max), "magma"),
         (
-            pressure,
-            r"Druck $p$ (logarithmisch)",
-            LogNorm(pressure_min, pressure_max, clip=True),
+            speed_for_display,
+            (
+                r"Geschwindigkeitsbetrag $|v|$"
+                if speed_scale == "linear"
+                else (
+                    r"Geschwindigkeitsbetrag $|v|$ (Potenzskala)"
+                    if speed_scale == "power"
+                    else r"Geschwindigkeitsbetrag $|v|$ (logarithmisch)"
+                )
+            ),
+            speed_norm,
+            "magma",
+        ),
+        (
+            pressure_for_display,
+            (
+                r"Druck $p$ (logarithmisch)"
+                if pressure_contrast == 1.0
+                else r"Druck $p$ (logarithmisch, Kontrast)"
+            ),
+            pressure_norm,
             "plasma",
         ),
     )
@@ -390,6 +504,12 @@ def save_supernovae_turbolenz_gif(
         if density_colorbar_ticks is not None and axis is axes[0]:
             colorbar.set_ticks(density_colorbar_ticks)
             colorbar.set_ticklabels(density_colorbar_labels)
+        if speed_colorbar_ticks is not None and axis is axes[1]:
+            colorbar.set_ticks(speed_colorbar_ticks)
+            colorbar.set_ticklabels(speed_colorbar_labels)
+        if pressure_colorbar_ticks is not None and axis is axes[2]:
+            colorbar.set_ticks(pressure_colorbar_ticks)
+            colorbar.set_ticklabels(pressure_colorbar_labels)
         axis.set_title(title)
         axis.set_xlabel("x' = x - L/2")
         axis.set_ylabel("y' = y - L/2")
@@ -456,6 +576,7 @@ def save_supernovae_turbolenz_gif(
         "Druck-Perzentile: "
         f"{pressure_low_percentile:g}...{pressure_high_percentile:g}"
     )
+    print(f"Druck-Kontrastexponent: {pressure_contrast:g}")
     print(f"Dichteskalierung: {density_scale}")
     if density_scale != "linear":
         print(
@@ -468,6 +589,10 @@ def save_supernovae_turbolenz_gif(
             f"Dichtezentrum: {density_center_value:.6g}; "
             f"Randexponent: {density_tail_exponent:.6g}"
         )
+    print(
+        f"Geschwindigkeitsskala: {speed_scale}; "
+        f"Boden: {speed_floor:g}; Gamma: {speed_gamma:g}"
+    )
     return output_path
 
 
@@ -529,6 +654,30 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--pressure-contrast",
+        type=float,
+        default=0.5,
+        help=(
+            "Exponent der logarithmischen Druck-Kontrasttransformation. "
+            "0.5 hebt niedrige Drücke moderat hervor; 1.0 deaktiviert sie."
+        ),
+    )
+    parser.add_argument(
+        "--pressure-display-min",
+        type=float,
+        default=None,
+        help="Explizite untere Druckgrenze der Farbdarstellung.",
+    )
+    parser.add_argument(
+        "--pressure-display-max",
+        type=float,
+        default=None,
+        help=(
+            "Explizite obere Druckgrenze der Farbdarstellung. Werte darüber "
+            "werden gesättigt; damit kann der Bereich p=1...10 fokussiert werden."
+        ),
+    )
+    parser.add_argument(
         "--density-scale",
         choices=("linear", "log-medium", "log-combined", "log-two-sided"),
         default="log-two-sided",
@@ -576,6 +725,33 @@ def main() -> None:
             "Mediane der Mediumdichte."
         ),
     )
+    parser.add_argument(
+        "--speed-scale",
+        choices=("linear", "power", "log-medium", "log-combined"),
+        default="power",
+        help=(
+            "Geschwindigkeitsskala: linear, moderate Potenzskala oder "
+            "logarithmisch mit einer Referenz aus Medium beziehungsweise allen Frames."
+        ),
+    )
+    parser.add_argument(
+        "--speed-floor",
+        type=float,
+        default=0.05,
+        help=(
+            "Positiver Boden für die logarithmische Geschwindigkeitsskala; "
+            "0.05 ist eine moderate Verstärkung kleiner Geschwindigkeiten."
+        ),
+    )
+    parser.add_argument(
+        "--speed-gamma",
+        type=float,
+        default=0.5,
+        help=(
+            "Exponent der moderaten Geschwindigkeitsskala; kleinere Werte "
+            "verstärken niedrige Geschwindigkeiten stärker."
+        ),
+    )
     args = parser.parse_args()
     save_supernovae_turbolenz_gif(
         args.medium_input,
@@ -588,12 +764,18 @@ def main() -> None:
         pressure_scale=args.pressure_scale,
         pressure_low_percentile=args.pressure_low_percentile,
         pressure_high_percentile=args.pressure_high_percentile,
+        pressure_contrast=args.pressure_contrast,
+        pressure_display_min=args.pressure_display_min,
+        pressure_display_max=args.pressure_display_max,
         density_scale=args.density_scale,
         density_low_percentile=args.density_low_percentile,
         density_high_percentile=args.density_high_percentile,
         density_contrast=args.density_contrast,
         density_tail_exponent=args.density_tail_exponent,
         density_center=args.density_center,
+        speed_scale=args.speed_scale,
+        speed_floor=args.speed_floor,
+        speed_gamma=args.speed_gamma,
     )
 
 

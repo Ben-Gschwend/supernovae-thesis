@@ -15,6 +15,9 @@ from matplotlib import cm, colors, colormaps
 from pathlib import Path
 
 
+DATA_DIR = Path(__file__).resolve().parent
+
+
 def animate_interactive_3d(
     snapshots,
     registered_variables,
@@ -193,7 +196,7 @@ def save_interactive_3d_html(
     snapshots,
     registered_variables,
     *,
-    output_path: str = "supernova_3d.html",
+    output_path: str | Path = DATA_DIR / "supernova_3d.html",
     box_size: float | tuple[float, float, float] = 1.0,
     background_pressure: float = 0.1,
     initial_inside_pressure: float = 1.0,
@@ -471,7 +474,7 @@ def save_3d_radial_profiles_gif(
     registered_variables,
     *,
     box_size: float | tuple[float, float, float] = 1.0,
-    output_path: str = "supernova_3d_radial_profiles.gif",
+    output_path: str | Path = DATA_DIR / "supernova_3d_radial_profiles.gif",
     data_output_path: str | None = None,
     num_bins: int = 128,
     interval: int = 100,

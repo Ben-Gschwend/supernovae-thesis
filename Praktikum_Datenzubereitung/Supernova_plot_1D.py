@@ -7,6 +7,9 @@ from pathlib import Path
 import numpy as np
 
 
+DATA_DIR = Path(__file__).resolve().parent
+
+
 def _next_available_path(output_path: Path) -> Path:
     """Gib einen freien Ausgabepfad zurück."""
 
@@ -29,7 +32,7 @@ def save_interactive_1d_html(
     radius,
     *,
     field: str = "pressure",
-    output_path: str = "supernova_1d.html",
+    output_path: str | Path = DATA_DIR / "supernova_1d.html",
     title: str | None = None,
 ):
     """Speichere eine interaktive radiale 1D-Animation als HTML-Datei."""
@@ -184,7 +187,7 @@ def save_1d_gif(
     radius,
     *,
     field: str = "pressure",
-    output_path: str = "supernova_1d.gif",
+    output_path: str | Path = DATA_DIR / "supernova_1d.gif",
     interval: int = 100,
     fps: int = 10,
 ):
@@ -265,7 +268,7 @@ def save_1d_profiles_gif(
     registered_variables,
     radius,
     *,
-    output_path: str = "supernova_1d_profiles.gif",
+    output_path: str | Path = DATA_DIR / "supernova_1d_profiles.gif",
     data_output_path: str | None = None,
     interval: int = 100,
     fps: int = 10,
