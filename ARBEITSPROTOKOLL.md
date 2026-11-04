@@ -975,3 +975,29 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   astronomix-Positivitätsschutz beziehungsweise flux-preserving Limiting
   aktivieren. Ein weiterer GPU-Lauf wurde nach diesem Fehlschlag nicht
   automatisch gestartet.
+
+## 2026-11-04 – Faktor-25-CFL-0.2-Lauf instabil und Faktor-15-Lauf erfolgreich
+
+- **Faktor 25 mit CFL 0.2:** Der implizite Lauf auf GPU 7 wurde mit halbierter
+  CFL-Zahl erneut getestet. Er blieb bis ungefähr `16,5 %` numerisch aktiv,
+  wurde danach aber beim finalen Zustand als nicht-endlich erkannt. Die
+  Halbierung der CFL-Zahl genügt für Faktor 25 daher nicht.
+- **Faktor 15:** Gemäß der vorher vereinbarten nächsten Stufe wurde danach auf
+  GPU 7 ein `128^3`-Lauf mit Amplitude `9.0`, `CFL=0.2`, implizitem Cooling,
+  Cooling-Faktor `15.0`, Seed 42, `k_f=25` und 32 gespeicherten Snapshots
+  durchgeführt.
+- **Ergebnis:** Der Faktor-15-Lauf erreichte `100 %`, wurde ohne Exception
+  gespeichert und bestand die nachträgliche Validierung vollständig:
+  endliche Zustände, endliche und streng ansteigende Zeitpunkte.
+- **Datensatz:**
+  `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_kf25_amp9_cooling_factor15_implicit_cfl02_gpu7.npz`.
+- **Geschwindigkeitsverhältnis:** Peak ungefähr `1.27`; bei `t=5`
+  ungefähr `1.23`. Am Ende liegen typische Geschwindigkeit und mittlere
+  Schallgeschwindigkeit bei ungefähr `1.19` beziehungsweise `0.96`, der
+  mittlere Druck bei ungefähr `0.59`.
+- **Interpretation:** Faktor 15 ist in dieser Konfiguration stabil und führt
+  zu einem dauerhaft überschallnahen beziehungsweise supersonischen
+  charakteristischen Quotienten, erreicht aber das Ziel `1.5` noch nicht.
+- **GPU/Laufzeit:** GPU 7 wurde nach ausdrücklicher Nutzerfreigabe verwendet;
+  eine genaue Laufzeit wurde nicht separat gemessen. Die Auswertung danach
+  erfolgte CPU-only.
