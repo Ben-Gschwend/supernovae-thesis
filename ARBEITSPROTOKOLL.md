@@ -856,3 +856,42 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Laufzeit:** Nicht separat mit einer Stoppuhr erfasst; der überwachte
   Rechenlauf dauerte mehrere Minuten. GPU 7 wurde ausschließlich für diesen
   vom Nutzer freigegebenen Simulationszweck verwendet.
+
+## 2026-11-04 – Ursache des fehlenden supersonischen Langzeitbereichs untersucht
+
+- **Datengrundlage:** Vergleich der gespeicherten `64^3`-Referenz ohne Cooling,
+  des `128^3`-Laufs mit Amplitude `3` und Cooling, des `128^3`-Laufs mit
+  Amplitude `9` und Cooling sowie des vorhandenen `128^3`-Laufs mit Amplitude
+  `3` ohne Cooling.
+- **Befund für Amplitude 9 mit Cooling-Faktor 1:** Die typische Geschwindigkeit
+  steigt bis ungefähr `1.23` und liegt bei `t=5` noch bei `1.16`. Gleichzeitig
+  steigt der mittlere Druck bis ungefähr `9.08`, wodurch die mittlere
+  Schallgeschwindigkeit bis ungefähr `3.89` wächst. Das Verhältnis fällt
+  deshalb nach dem Anfangspeak bis ungefähr `0.30`.
+- **Vergleich mit Amplitude 3 und Cooling:** Bei `t=5` liegen typische
+  Geschwindigkeit, Schallgeschwindigkeit und Verhältnis ungefähr bei
+  `0.69`, `1.77` und `0.39`; die stärkere Forcierung erhöht also die
+  Geschwindigkeit weniger stark als den thermischen Druck.
+- **Physikalische Interpretation:** Die periodische OU-Forcierung injiziert
+  fortlaufend Energie. Bei größerer Amplitude wird ein größerer Anteil der
+  kinetischen Energie durch Kompression und Schocks in innere Energie
+  umgewandelt. Die mittlere Dichte bleibt wegen der periodischen Randbedingung
+  ungefähr `1`; der Anstieg der Schallgeschwindigkeit stammt daher vor allem
+  vom Druck beziehungsweise der Temperatur `p/rho`.
+- **Lokale Mach-Zahlen:** Im Amplitude-9-Lauf sind anfangs lokal supersonische
+  Zellen vorhanden: bei `t≈0.16` haben etwa `24.7 %` der Zellen `M>1`, bei
+  `t≈0.47` etwa `17.2 %`. Bei `t=5` ist keine Zelle mehr supersonisch. Die
+  bisher geplottete Größe `<|v|>/<c_s>` ist dagegen ein globaler
+  charakteristischer Quotient und nicht der Mittelwert der lokalen Mach-Zahlen.
+- **Cooling-Schlussfolgerung:** Für die verwendete Power-Law-Kurve ist der
+  `cooling-factor` direkt die Stärke des Kühlterms. Bei Exponent `1` entspricht
+  Faktor `1` in der aktuellen Dichteordnung ungefähr einer Cooling-Zeit von
+  `3.8` Codezeiteinheiten; Faktor `5` beziehungsweise `10` verkürzt sie grob
+  auf `0.76` beziehungsweise `0.38`. Ein stärkerer Cooling-Faktor ist daher
+  der direkteste nächste Versuch. Die explizite Zeitintegration muss dabei auf
+  mögliche Stabilitätsprobleme kontrolliert werden.
+- **Status:** CPU-only-Auswertung, keine neue Simulation gestartet. Als
+  nächster Versuch wird ein Cooling-Faktor von `5` empfohlen; für einen
+  sichereren supersonischen charakteristischen Quotienten könnte anschließend
+  Faktor `10` untersucht werden. Diese Parameterwahl ist ein Experiment und
+  keine astrophysikalische Kalibrierung.
