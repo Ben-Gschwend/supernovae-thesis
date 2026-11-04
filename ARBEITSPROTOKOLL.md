@@ -912,3 +912,22 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   bestätigt.
 - **Backend:** astronomix verwendete wie zuvor den `NATIVE_JAX`-Fallback;
   der Lauf überschritt die frühere Abbruchstelle bei `68,2 %` problemlos.
+
+## 2026-11-04 – Cooling-Faktor 5 quantitativ bewertet
+
+- **Datensatz:** `turbulent_medium_128cells_t5_kf25_amp9_cooling_factor5_gpu7.npz`.
+- **Befund:** Der charakteristische Quotient erreicht kurzzeitig ungefähr
+  `0.91` und liegt bei `t=5` bei ungefähr `0.65`. Die typische Geschwindigkeit
+  beträgt am Ende ungefähr `1.26`, die mittlere Schallgeschwindigkeit ungefähr
+  `1.94` und der mittlere Druck ungefähr `2.29`.
+- **Zielabschätzung:** Für einen Endquotienten von `1.5` wäre bei unveränderter
+  typischer Geschwindigkeit eine mittlere Schallgeschwindigkeit von ungefähr
+  `0.84` beziehungsweise ein Druck von ungefähr `0.42` erforderlich.
+- **Nächste Wahl:** Im Faktor-5-Lauf ist der Druck näherungsweise in einem
+  Cooling-/Heizgleichgewicht. Eine grobe Skalierung legt deshalb einen Faktor
+  von etwa `25...30` für einen Endquotienten um `1.5` nahe. Als kontrollierten
+  nächsten Versuch wird zunächst `cooling_factor=25` empfohlen. Diese
+  Extrapolation ist unsicher, weil stärkeres Cooling die Geschwindigkeit und
+  die Energiebilanz ebenfalls verändern kann.
+- **Prüfung:** CPU-only-Auswertung der vorhandenen NPZ-Datei; keine neue
+  Simulation gestartet.
