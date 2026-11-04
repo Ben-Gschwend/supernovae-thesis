@@ -895,3 +895,20 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   sichereren supersonischen charakteristischen Quotienten könnte anschließend
   Faktor `10` untersucht werden. Diese Parameterwahl ist ein Experiment und
   keine astrophysikalische Kalibrierung.
+
+## 2026-11-04 – Amp9-Lauf mit Cooling-Faktor 5 erfolgreich durchgeführt
+
+- **Lauf:** Nach ausdrücklicher Nutzerfreigabe wurde der `128^3`-Lauf auf GPU
+  7 gestartet. Verwendet wurden `t=0...5`, `gamma=5/3`, `CFL=0.4`, Seed 42,
+  `k_f=25`, Forcing-Amplitude `9.0`, periodische Randbedingungen und explizites
+  Power-Law-Cooling mit `factor=5`, `exponent=1`, `T_ref=1` und
+  `T_floor=10^-6`.
+- **Ergebnis:** Der Lauf erreichte `100 %` ohne Exception. Die Datei
+  `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_kf25_amp9_cooling_factor5_gpu7.npz`
+  wurde vollständig gespeichert. Sie enthält 32 gespeicherte Snapshots und
+  die Zustandsform `(5, 128, 128, 128)` pro Zustand.
+- **Metadatenprüfung:** `cooling=true`, `cooling_factor=5.0`,
+  `forcing_amplitude=9.0` und `snapshots_saved=true` wurden aus der NPZ-Datei
+  bestätigt.
+- **Backend:** astronomix verwendete wie zuvor den `NATIVE_JAX`-Fallback;
+  der Lauf überschritt die frühere Abbruchstelle bei `68,2 %` problemlos.
