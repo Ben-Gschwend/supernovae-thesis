@@ -54,6 +54,7 @@ from astronomix.option_classes.simulation_config import (
     PERIODIC_BOUNDARY,
     SnapshotSettings,
 )
+from .physikalische_einheiten import PhysicalScaling
 
 
 def _parse_args() -> argparse.Namespace:
@@ -65,6 +66,36 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--num-cells", type=int, default=128)
     parser.add_argument("--box-size", type=float, default=1.0)
+    parser.add_argument(
+        "--physical-box-size-pc",
+        type=float,
+        default=None,
+        help="Physikalische Boxlänge für die Referenzskalierung in pc.",
+    )
+    parser.add_argument(
+        "--physical-hydrogen-number-density",
+        type=float,
+        default=None,
+        help="Wasserstoffzahlendichte der Referenzumgebung in cm^-3.",
+    )
+    parser.add_argument(
+        "--physical-temperature-k",
+        type=float,
+        default=None,
+        help="Referenztemperatur der Umgebung in K.",
+    )
+    parser.add_argument(
+        "--physical-mean-molecular-weight",
+        type=float,
+        default=1.27,
+        help="Mittlere Teilchenmasse in Wasserstoffmassen; WNM etwa 1.27.",
+    )
+    parser.add_argument(
+        "--physical-mass-per-hydrogen-nucleus",
+        type=float,
+        default=1.4,
+        help="Masse pro Wasserstoffkern in Wasserstoffmassen; Standard 1.4.",
+    )
     parser.add_argument("--t-end", type=float, default=1.0)
     parser.add_argument("--num-snapshots", type=int, default=16)
     parser.add_argument(
@@ -194,6 +225,36 @@ def _as_float_tuple(values) -> tuple[float, ...]:
     return tuple(float(value) for value in np.asarray(values).reshape(-1))
 
 
+def _physical_scaling_from_args(
+    args: argparse.Namespace,
+) -> PhysicalScaling | None:
+    physical_values = (
+        args.physical_box_size_pc,
+        args.physical_hydrogen_number_density,
+        args.physical_temperature_k,
+    )
+    if all(value is None for value in physical_values):
+        return None
+    if any(value is None for value in physical_values):
+        raise ValueError(
+            "Für die physikalische Skalierung müssen "
+            "--physical-box-size-pc, --physical-hydrogen-number-density und "
+            "--physical-temperature-k gemeinsam angegeben werden."
+        )
+    return PhysicalScaling(
+        box_size_pc=float(args.physical_box_size_pc),
+        hydrogen_number_density_cm3=float(
+            args.physical_hydrogen_number_density
+        ),
+        temperature_K=float(args.physical_temperature_k),
+        gamma=float(args.gamma),
+        mean_molecular_weight=float(args.physical_mean_molecular_weight),
+        mass_per_hydrogen_nucleus=float(
+            args.physical_mass_per_hydrogen_nucleus
+        ),
+    )
+
+
 def _next_available_path(output_path: Path) -> Path:
     """Verhindere das Überschreiben eines vorhandenen Mediums."""
 
@@ -232,6 +293,7 @@ def build_simulation(args: argparse.Namespace):
         raise ValueError("--cooling-reference-temperature muss positiv sein.")
     if args.cooling_floor_temperature <= 0.0:
         raise ValueError("--cooling-floor-temperature muss positiv sein.")
+    _physical_scaling_from_args(args)
 
     forcing_config = TurbulentForcingConfig(
         turbulent_forcing=True,
@@ -357,6 +419,7 @@ def save_turbulent_medium(
             "astronomix hat ungültige oder nicht streng ansteigende time_points "
             "zurückgegeben. Der Lauf wird nicht als gültiges Medium gespeichert."
         )
+    physical_scaling = _physical_scaling_from_args(args)
     metadata = {
         "purpose": "turbulent_initial_medium_before_supernova",
         "forcing": "ornstein_uhlenbeck",
@@ -391,6 +454,9 @@ def save_turbulent_medium(
             "velocity_y_index": int(registered_variables.velocity_index.y),
             "velocity_z_index": int(registered_variables.velocity_index.z),
         },
+        "physical_scaling": (
+            physical_scaling.to_metadata() if physical_scaling is not None else None
+        ),
     }
 
     output_path = _next_available_path(output_path)

@@ -1040,3 +1040,31 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Prüfung:** Python-Kompilierung und `git diff --check` erfolgreich. Kein
   neuer GPU-Lauf durch Codex gestartet. Für die GIF-Erzeugung muss der Nutzer
   die Supernova-Phase einmal erneut mit denselben Parametern starten.
+
+## 2026-11-04 – Physikalische Referenzskalierung für warmes ISM ergänzt
+
+- **Ziel:** Die normierten Simulationen sollen zusätzlich auf einen
+  astrophysikalisch plausiblen Referenzfall bezogen werden können.
+- **Festgelegte Arbeitsannahme:** warmes interstellares Medium mit
+  Wasserstoffzahlendichte `n_H=1 cm^-3`, Temperatur `T=8000 K`, physikalischer
+  Boxlänge `100 pc`, `gamma=5/3`, mittlerer Teilchenmasse `1.27` und
+  `1.4` Wasserstoffmassen pro Wasserstoffkern. Die Boxlänge ist eine
+  Modellannahme und muss bei Bedarf mit dem Tutor angepasst werden.
+- **Codeänderung:** Neues Modul
+  `Praktikum_Datenzubereitung/physikalische_einheiten.py` berechnet aus diesen
+  Referenzgrößen die Dichte-, Druck-, Geschwindigkeits-, Zeit- und
+  Energieeinheit. `anfangsmedium.py` kann die Skalierung über neue
+  `--physical-*`-Argumente in den Medium-Metadaten speichern.
+- **Supernovaenergie:** `supernovae_turbolenz.py` akzeptiert nun
+  `--physical-explosion-energy-erg` und rechnet die physikalische Energie
+  anhand der gespeicherten Energieeinheit in Codeeinheiten um. Für `100 pc`,
+  `n_H=1 cm^-3` und `T=8000 K` entspricht `10^51 erg` ungefähr
+  `27.95` Codeenergieeinheiten; die Codezeit beträgt ungefähr `10.51 Myr`.
+- **Wichtige Einschränkung:** Die Felder bleiben dimensionslos normiert. Die
+  neue Skalierung interpretiert die Ergebnisse physikalisch, ersetzt aber noch
+  nicht das vereinfachte Power-Law-Cooling durch eine tabellierte
+  astrophysikalische Kühlkurve. Ein erster Lauf mit Cooling-Faktor `15` bleibt
+  deshalb ein physikalisch skalierter, aber beim Cooling weiterhin
+  vereinfachter Vergleichslauf.
+- **Prüfungen:** Python-Kompilierung, beide CLI-Hilfen und ein isolierter
+  Roundtrip der Skalierungsmetadaten erfolgreich. Kein GPU-Lauf gestartet.

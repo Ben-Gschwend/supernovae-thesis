@@ -49,6 +49,7 @@ from astronomix.option_classes.simulation_config import (
     PERIODIC_BOUNDARY,
     SnapshotSettings,
 )
+from .physikalische_einheiten import PhysicalScaling
 
 
 def _parse_args() -> argparse.Namespace:
@@ -91,7 +92,22 @@ def _parse_args() -> argparse.Namespace:
             "supernova_3d_slices_128cells.gif."
         ),
     )
-    parser.add_argument("--explosion-energy", type=float, default=1.0)
+    energy_group = parser.add_mutually_exclusive_group()
+    energy_group.add_argument(
+        "--explosion-energy",
+        type=float,
+        default=None,
+        help="Zusätzliche Explosionsenergie in Codeeinheiten; Standard: 1.",
+    )
+    energy_group.add_argument(
+        "--physical-explosion-energy-erg",
+        type=float,
+        default=None,
+        help=(
+            "Zusätzliche Explosionsenergie in erg. Die zugehörige "
+            "Codeenergie wird aus physical_scaling im Medium berechnet."
+        ),
+    )
     parser.add_argument(
         "--explosion-radius",
         type=float,
@@ -203,6 +219,22 @@ def _load_medium(input_path: Path) -> tuple[np.ndarray, dict]:
     return primitive_state, metadata
 
 
+def _physical_scaling_from_metadata(metadata: dict) -> PhysicalScaling | None:
+    values = metadata.get("physical_scaling")
+    if values is None:
+        return None
+    return PhysicalScaling(
+        box_size_pc=float(values["box_size_pc"]),
+        hydrogen_number_density_cm3=float(
+            values["hydrogen_number_density_cm3"]
+        ),
+        temperature_K=float(values["temperature_K"]),
+        gamma=float(values["gamma"]),
+        mean_molecular_weight=float(values["mean_molecular_weight"]),
+        mass_per_hydrogen_nucleus=float(values["mass_per_hydrogen_nucleus"]),
+    )
+
+
 def _build_phase_two(
     primitive_state: np.ndarray,
     metadata: dict,
@@ -217,8 +249,16 @@ def _build_phase_two(
         raise ValueError("--duration muss positiv sein.")
     if args.num_snapshots < 2:
         raise ValueError("--num-snapshots muss mindestens 2 sein.")
-    if args.explosion_energy <= 0.0:
+    if (
+        args.explosion_energy is not None
+        and args.explosion_energy <= 0.0
+    ):
         raise ValueError("--explosion-energy muss positiv sein.")
+    if (
+        args.physical_explosion_energy_erg is not None
+        and args.physical_explosion_energy_erg <= 0.0
+    ):
+        raise ValueError("Die physikalische Explosionsenergie muss positiv sein.")
     if args.explosion_radius <= 0.0:
         raise ValueError("--explosion-radius muss positiv sein.")
     if args.smoothing_cells <= 0.0:
@@ -230,6 +270,20 @@ def _build_phase_two(
         raise ValueError("Das Skript erwartet ein kubisches 3D-Gitter.")
     num_cells = nx
     gamma = float(args.gamma if args.gamma is not None else metadata["gamma"])
+    physical_scaling = _physical_scaling_from_metadata(metadata)
+    if args.physical_explosion_energy_erg is not None:
+        if physical_scaling is None:
+            raise ValueError(
+                "Für --physical-explosion-energy-erg benötigt das Medium "
+                "physical_scaling-Metadaten."
+            )
+        explosion_energy = physical_scaling.explosion_energy_code(
+            args.physical_explosion_energy_erg
+        )
+    else:
+        explosion_energy = float(
+            args.explosion_energy if args.explosion_energy is not None else 1.0
+        )
 
     medium_time = float(
         args.medium_time
@@ -303,7 +357,7 @@ def _build_phase_two(
         1.0 - jnp.tanh((radius - args.explosion_radius) / smoothing_width)
     )
     cell_volume = (box_size / num_cells) ** 3
-    delta_pressure = args.explosion_energy * (gamma - 1.0) / (
+    delta_pressure = explosion_energy * (gamma - 1.0) / (
         cell_volume * jnp.sum(window)
     )
 
@@ -401,6 +455,13 @@ def _save_central_slices(
             "pressure_index": pressure_index,
         },
         "injected_energy": float(injected_energy),
+        "injected_energy_code": float(injected_energy),
+        "injected_energy_erg": (
+            float(injected_energy * physical_scaling.energy_unit_erg)
+            if physical_scaling is not None
+            else None
+        ),
+        "physical_scaling": metadata.get("physical_scaling"),
         "cooling": bool(cooling_enabled),
         "cooling_model": metadata.get("cooling_model") if cooling_enabled else None,
         "cooling_method": metadata.get("cooling_method") if cooling_enabled else None,
@@ -463,7 +524,13 @@ def main() -> None:
             f"Methode={metadata.get('cooling_method')}, "
             f"Faktor={metadata.get('cooling_factor')}"
         )
-    print(f"Normierte zusätzliche Explosionsenergie: {injected_energy:.8g}")
+    print(f"Zusätzliche Explosionsenergie in Codeeinheiten: {injected_energy:.8g}")
+    physical_scaling = _physical_scaling_from_metadata(metadata)
+    if physical_scaling is not None:
+        print(
+            "Zusätzliche Explosionsenergie physikalisch: "
+            f"{injected_energy * physical_scaling.energy_unit_erg:.6e} erg"
+        )
     print("Starte die Supernova-Phase im vollständigen 3D-Zustand.")
 
     snapshots = time_integration(
