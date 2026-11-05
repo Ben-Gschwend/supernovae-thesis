@@ -1138,3 +1138,31 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Prüfung:** Syntaxprüfung und Rekonstruktion der Schure-Kurve mit beiden
   Phase-2-Methoden CPU-seitig erfolgreich. Ein erneuter GPU-Supernova-Lauf mit
   `--phase-two-cooling-method implicit` ist noch offen.
+
+## 2026-11-05 – Stabilisierung der Supernova-Energieeinbringung
+
+- **Ziel:** Die Schure-CIE-Supernova-Phase im gültigen turbulenten Medium erneut
+  stabil integrieren.
+- **Ausgangslage:** Die vorherigen Phase-2-Läufe mit einem Explosionsradius von
+  `0.01` Codeeinheiten und deaktiviertem Positivitätsschutz brachen bei etwa
+  `4,2–4,7 %` mit nicht-endlichen Zuständen ab.
+- **Änderungen:** Der Standard-Explosionsradius in
+  `supernovae_turbolenz.py` wurde auf `0.03` Codeeinheiten erhöht. Für Phase 2
+  wird nun `POSITIVITY_REDISTRIBUTE` sowohl während der Integrationsstufen als
+  auch pro Zeitschritt verwendet; `vacuum_rest=True` verhindert dabei extreme
+  rekonstruierte Geschwindigkeiten in nahezu leeren Zellen. NaN-Werte werden
+  nicht stillschweigend ersetzt. Explosionsradius, Glättungsbreite und
+  Positivitätsschutz werden in den Ergebnis-Metadaten dokumentiert.
+- **Physikalische Konfiguration:** Dasselbe Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_gpu7.npz`, implizites
+  Schure-2009-CIE-Cooling, `E_SN=10^51 erg`, `CFL=0.1`; die Gesamtenergie der
+  Injektion bleibt unverändert.
+- **GPU-Freigabe:** Nutzerfreigabe für GPU 7 lag vor; Zweck war ein kurzer
+  Stabilitätstest vor dem vollständigen Lauf.
+- **Tests:** Der konservative Positivitätsschutz mit 16 Glättungspässen lief
+  bis etwa `32,5 %` ohne numerischen Fehler, war aber sehr langsam und wurde
+  kontrolliert abgebrochen. Der schnellere Redistribute-Test lief bis etwa
+  `19,7 %` ohne den früheren Abbruch und wurde ebenfalls kontrolliert beendet;
+  die kurze Testdatei wurde deshalb noch nicht gespeichert.
+- **Nächster Schritt:** Vollständiger Phase-2-Lauf mit Radius `0.03`,
+  `--num-snapshots 120` und Redistribute-Positivitätsschutz auf GPU 7.

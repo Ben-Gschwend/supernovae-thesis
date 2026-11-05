@@ -47,6 +47,8 @@ from astronomix.option_classes.simulation_config import (
     BoundarySettings,
     BoundarySettings1D,
     PERIODIC_BOUNDARY,
+    POSITIVITY_REDISTRIBUTE,
+    PositivityConfig,
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
@@ -112,8 +114,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--explosion-radius",
         type=float,
-        default=0.01,
-        help="Radius der zentralen zusätzlichen Explosionsregion.",
+        default=0.03,
+        help=(
+            "Radius der zentralen zusätzlichen Explosionsregion in Codeeinheiten; "
+            "Standard: 0.03 (bei 100 pc Box etwa 3 pc)."
+        ),
     )
     parser.add_argument(
         "--smoothing-cells",
@@ -361,6 +366,15 @@ def _build_phase_two(
             ou_forcing=False,
             vacuum_protection=False,
         ),
+        # Die konzentrierte Supernovaenergie erzeugt einen sehr starken Stoß.
+        # Die Redistribution stabilisiert starke Stoßwellen während der
+        # RK-Stufen und schützt zusätzlich den Zustand vor jedem neuen
+        # Zeitschritt, ohne NaN-Werte stillschweigend zu ersetzen.
+        positivity_config=PositivityConfig(
+            per_stage_mode=POSITIVITY_REDISTRIBUTE,
+            per_step_mode=POSITIVITY_REDISTRIBUTE,
+            vacuum_rest=True,
+        ),
         cooling_config=cooling_config,
         return_snapshots=True,
         num_snapshots=args.num_snapshots,
@@ -448,6 +462,8 @@ def _save_central_slices(
     medium_time: float,
     duration: float,
     injected_energy: float,
+    explosion_radius: float,
+    smoothing_cells: float,
     cooling_enabled: bool,
     cooling_method_used: str | None,
 ) -> Path:
@@ -508,6 +524,13 @@ def _save_central_slices(
             if physical_scaling is not None
             else None
         ),
+        "explosion_radius_code": float(explosion_radius),
+        "smoothing_cells": float(smoothing_cells),
+        "positivity_protection": {
+            "per_stage": "redistribute",
+            "per_step": "redistribute",
+            "vacuum_rest": True,
+        },
         "physical_scaling": metadata.get("physical_scaling"),
         "cooling": bool(cooling_enabled),
         "cooling_model": metadata.get("cooling_model") if cooling_enabled else None,
@@ -609,6 +632,8 @@ def main() -> None:
         medium_time,
         args.duration,
         injected_energy,
+        args.explosion_radius,
+        args.smoothing_cells,
         cooling_enabled,
         cooling_method_used,
     )
