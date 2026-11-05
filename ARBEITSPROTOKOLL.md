@@ -1194,3 +1194,23 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   allgemeine Positivitätsschutz auch in Phase 1 als Produktionskonfiguration
   aktiviert wird, bleibt nach dem Stabilitätstest und einer
   Erhaltungsgrößenprüfung zu entscheiden.
+
+## 2026-11-05 – Phase-2-Lauf mit Redistribute-Schutz weiterhin instabil
+
+- **Beobachtung:** Der persistente zellij-Lauf mit Radius `0.03`, implizitem
+  Schure-CIE-Cooling, `CFL=0.1` und `REDISTRIBUTE` erreichte den Integrations-
+  fortschritt `100 %`, wurde aber beim Speichern verworfen. Die zurückgegebenen
+  Snapshots enthielten nicht-endliche Werte; es wurde keine NPZ-Datei erzeugt.
+- **Abgrenzung:** Es gab keinen Out-of-Memory-Fehler und keinen zellij-Abbruch.
+  Der Fehler entstand in der numerischen Phase-2-Entwicklung. Da
+  `runtime_debugging` bisher deaktiviert war, wurde der erste fehlerhafte
+  Zeitschritt nicht direkt von astronomix gemeldet.
+- **Diagnoseänderung:** `supernovae_turbolenz.py` besitzt nun den Schalter
+  `--runtime-debugging`. Bei aktivierten astronomix-Checks soll die Integration
+  beim ersten negativen oder nicht-endlichen Zustand abbrechen. Zusätzlich
+  berichtet die Snapshot-Prüfung bei einem später erkannten Fehler den ersten
+  fehlerhaften Snapshot, die betroffenen Variablen und den Wertebereich des
+  letzten gültigen Snapshots.
+- **Nächster Versuch:** Zuerst ein kurzer diagnostischer GPU-Lauf mit derselben
+  Konfiguration und aktiviertem `--runtime-debugging`, bevor neue Vergleichs-
+  mediumläufe gestartet werden. Die dafür verwendete GPU ist noch festzulegen.

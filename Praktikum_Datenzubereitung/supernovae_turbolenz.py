@@ -128,6 +128,14 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--cfl", type=float, default=None)
     parser.add_argument(
+        "--runtime-debugging",
+        action="store_true",
+        help=(
+            "Aktiviert astronomix-Checks auf negative/nicht-endliche Zustände. "
+            "Deutlich langsamer; nur für Diagnoseläufe verwenden."
+        ),
+    )
+    parser.add_argument(
         "--phase-two-cooling-method",
         choices=("metadata", "explicit", "implicit"),
         default="metadata",
@@ -375,6 +383,7 @@ def _build_phase_two(
             per_step_mode=POSITIVITY_REDISTRIBUTE,
             vacuum_rest=True,
         ),
+        runtime_debugging=args.runtime_debugging,
         cooling_config=cooling_config,
         return_snapshots=True,
         num_snapshots=args.num_snapshots,
@@ -454,6 +463,55 @@ def _build_phase_two(
     )
 
 
+def _snapshot_finiteness_diagnostics(
+    states: np.ndarray,
+    local_time_points: np.ndarray,
+    registered_variables,
+) -> str:
+    """Beschreibe den ersten Snapshot mit nicht-endlichen Feldwerten."""
+
+    finite = np.isfinite(states)
+    frame_is_finite = finite.reshape(states.shape[0], -1).all(axis=1)
+    bad_frames = np.flatnonzero(~frame_is_finite)
+    if bad_frames.size == 0:
+        return "Keine einzelne fehlerhafte Snapshot-Position bestimmbar."
+
+    first_bad = int(bad_frames[0])
+    bad_variables = np.flatnonzero(
+        ~finite[first_bad].reshape(states.shape[1], -1).all(axis=1)
+    )
+    variable_names = {
+        int(registered_variables.density_index): "density",
+        int(registered_variables.velocity_index.x): "velocity_x",
+        int(registered_variables.velocity_index.y): "velocity_y",
+        int(registered_variables.velocity_index.z): "velocity_z",
+        int(registered_variables.pressure_index): "pressure",
+    }
+    bad_names = [variable_names.get(int(i), f"variable_{i}") for i in bad_variables]
+
+    last_good = first_bad - 1
+    last_good_summary = "kein vorheriger gültiger Snapshot"
+    if last_good >= 0:
+        summary_parts = []
+        for index, name in variable_names.items():
+            values = states[last_good, index]
+            values = values[np.isfinite(values)]
+            if values.size:
+                summary_parts.append(
+                    f"{name}=[{float(np.min(values)):.6e},"
+                    f" {float(np.max(values)):.6e}]"
+                )
+        last_good_summary = ", ".join(summary_parts)
+
+    time_value = float(local_time_points[first_bad])
+    return (
+        f"Erster fehlerhafter Snapshot: index={first_bad}, "
+        f"lokale Zeit={time_value:.8e}, "
+        f"betroffene Variablen={bad_names}; "
+        f"letzter gültiger Snapshot: {last_good_summary}"
+    )
+
+
 def _save_central_slices(
     snapshots,
     registered_variables,
@@ -464,6 +522,7 @@ def _save_central_slices(
     injected_energy: float,
     explosion_radius: float,
     smoothing_cells: float,
+    runtime_debugging: bool,
     cooling_enabled: bool,
     cooling_method_used: str | None,
 ) -> Path:
@@ -480,7 +539,10 @@ def _save_central_slices(
     if not np.all(np.isfinite(states)):
         raise RuntimeError(
             "Die Supernova-Snapshots enthalten nicht-endliche Werte. "
-            "Die Phase 2 ist numerisch ungültig und wird nicht gespeichert."
+            "Die Phase 2 ist numerisch ungültig und wird nicht gespeichert. "
+            + _snapshot_finiteness_diagnostics(
+                states, local_time_points, registered_variables
+            )
         )
     if (
         not np.all(np.isfinite(local_time_points))
@@ -531,6 +593,7 @@ def _save_central_slices(
             "per_step": "redistribute",
             "vacuum_rest": True,
         },
+        "runtime_debugging": bool(runtime_debugging),
         "physical_scaling": metadata.get("physical_scaling"),
         "cooling": bool(cooling_enabled),
         "cooling_model": metadata.get("cooling_model") if cooling_enabled else None,
@@ -596,6 +659,7 @@ def main() -> None:
     print(f"Supernova-Startzeit: t={medium_time:g}")
     print(f"Supernova-Endzeit: t={medium_time + args.duration:g}")
     print(f"OU-Forcierung in Phase 2: {config.turbulent_forcing_config.turbulent_forcing}")
+    print(f"Laufzeit-Debugging: {config.runtime_debugging}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
     if cooling_enabled:
         print(f"Cooling-Methode in Phase 2: {cooling_method_used}")
@@ -634,6 +698,7 @@ def main() -> None:
         injected_energy,
         args.explosion_radius,
         args.smoothing_cells,
+        args.runtime_debugging,
         cooling_enabled,
         cooling_method_used,
     )
