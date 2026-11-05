@@ -10,6 +10,7 @@ from __future__ import annotations
 from astronomix._modules._cooling._cooling_tables import schure_cooling
 from astronomix._modules._cooling.cooling_options import (
     EXPLICIT_COOLING,
+    IMPLICIT_COOLING,
     PIECEWISE_POWER_LAW,
     CoolingConfig,
     CoolingCurveConfig,
@@ -23,14 +24,16 @@ from .physikalische_einheiten import PhysicalScaling
 def build_schure2009_cie_cooling(
     scaling: PhysicalScaling,
     floor_temperature_K: float = 1.0e4,
+    cooling_method: str = "explicit",
 ):
     """Erzeuge die tabellierte Schure-2009-CIE-Cooling-Konfiguration.
 
     Die Tabelle basiert auf Schure et al. (2009),
     https://arxiv.org/abs/0909.5204. Der astronomix-Pfad für diese
-    piecewise-power-law-Tabelle wird explizit integriert, weil die im Paket
-    dokumentierte Townsend-Integration für diese Kurve derzeit nicht als
-    zuverlässig markiert ist.
+    Der Default ist die explizite Integration. Für stark aufgeheizte
+    Supernova-Zellen kann alternativ der im Paket vorhandene implizite
+    Fixed-Point-Updatepfad verwendet werden; die dokumentierte exakte
+    Townsend-Integration für diese Kurve gilt derzeit als nicht zuverlässig.
     """
 
     if floor_temperature_K <= 0.0:
@@ -45,6 +48,8 @@ def build_schure2009_cie_cooling(
             "Die Schure-2009-CIE-Kurve benötigt eine ionisierte "
             "Referenzskalierung mit mean_molecular_weight ungefähr 0.61."
         )
+    if cooling_method not in ("explicit", "implicit"):
+        raise ValueError("cooling_method muss explicit oder implicit sein.")
 
     code_mass_g = (
         scaling.density_unit_g_per_cm3 * scaling.length_unit_cm**3
@@ -60,7 +65,9 @@ def build_schure2009_cie_cooling(
     )
     cooling_config = CoolingConfig(
         cooling=True,
-        cooling_method=EXPLICIT_COOLING,
+        cooling_method=(
+            EXPLICIT_COOLING if cooling_method == "explicit" else IMPLICIT_COOLING
+        ),
         cooling_curve_config=CoolingCurveConfig(
             cooling_curve_type=PIECEWISE_POWER_LAW,
         ),

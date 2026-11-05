@@ -1114,3 +1114,27 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Prüfung:** Python-Syntax und kleiner Schure-CIE-Konfigurations-Dry-Run
   erfolgreich. Kein neuer Medium- oder Supernova-GPU-Lauf gestartet. Der
   Medium-Lauf muss nach diesem Fix erneut ausgeführt werden.
+
+## 2026-11-05 – Schure-CIE-Supernova mit explizitem Update instabil
+
+- **Medium-Lauf:** Der korrigierte Lauf auf GPU 7 wurde mit `128^3` Zellen,
+  `CFL=0.1`, `n_H=1 cm^-3`, `T=10^4 K`, `100 pc` Box und Schure-2009-CIE-
+  Cooling erfolgreich bis `t=5` integriert und als gültige 640-MB-NPZ-Datei
+  gespeichert. Die Datei enthält 32 vollständige Snapshots, endliche Zustände
+  und monotone Zeiten.
+- **Supernova-Lauf:** Die Phase 2 mit `E_SN=10^51 erg`, 120 Snapshots und
+  expliziter Schure-CIE-Kühlung brach bei ungefähr `4,2 %` wegen
+  nicht-endlicher Snapshots ab. Es wurde keine Supernova-NPZ-Datei gespeichert.
+- **Ursache:** Die starke zentrale Aufheizung erzeugt lokal eine zu kurze
+  Cooling-Zeitskala für den expliziten Temperatur-Quellterm. Die Tabelle selbst
+  konnte CPU-seitig korrekt geladen und ein heißer Einzelwert endlich gekühlt
+  werden.
+- **Korrektur:** `supernovae_turbolenz.py` besitzt nun
+  `--phase-two-cooling-method {metadata,explicit,implicit}`. Für Phase 2 kann
+  die gleiche Schure-CIE-Kurve mit dem vorhandenen impliziten
+  Fixed-Point-Updatepfad von astronomix integriert werden, ohne das bereits
+  erfolgreiche Medium neu zu berechnen. Die tatsächlich verwendete Methode
+  wird in den Supernova-Metadaten gespeichert.
+- **Prüfung:** Syntaxprüfung und Rekonstruktion der Schure-Kurve mit beiden
+  Phase-2-Methoden CPU-seitig erfolgreich. Ein erneuter GPU-Supernova-Lauf mit
+  `--phase-two-cooling-method implicit` ist noch offen.

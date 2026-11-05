@@ -122,6 +122,16 @@ def _parse_args() -> argparse.Namespace:
         help="Glättungsbreite der Explosionsregion in Gitterzellen.",
     )
     parser.add_argument("--cfl", type=float, default=None)
+    parser.add_argument(
+        "--phase-two-cooling-method",
+        choices=("metadata", "explicit", "implicit"),
+        default="metadata",
+        help=(
+            "Cooling-Zeitintegration in Phase 2. metadata übernimmt die "
+            "Medium-Konfiguration; implicit kann die starke Supernova-"
+            "Aufheizung numerisch stabiler behandeln."
+        ),
+    )
     parser.add_argument("--gamma", type=float, default=None)
     parser.add_argument(
         "--boundary",
@@ -148,11 +158,14 @@ def _periodic_boundaries() -> BoundarySettings:
     return BoundarySettings(x=periodic, y=periodic, z=periodic)
 
 
-def _cooling_from_metadata(metadata: dict):
+def _cooling_from_metadata(
+    metadata: dict,
+    method_override: str = "metadata",
+):
     """Erzeuge die Phase-2-Cooling-Konfiguration aus dem Medium-Metadatum."""
 
     if not bool(metadata.get("cooling", False)):
-        return CoolingConfig(), CoolingParams(), False
+        return CoolingConfig(), CoolingParams(), False, None
 
     model = metadata.get("cooling_model", "simple_power_law")
     if model == "schure2009_cie":
@@ -162,25 +175,30 @@ def _cooling_from_metadata(metadata: dict):
                 "Das Medium verwendet schure2009_cie, enthält aber keine "
                 "physical_scaling-Metadaten."
             )
-        if metadata.get("cooling_method", "explicit") != "explicit":
-            raise ValueError(
-                "schure2009_cie benötigt in Phase 2 die explizite "
-                "Cooling-Integration."
-            )
+        cooling_method = (
+            metadata.get("cooling_method", "explicit")
+            if method_override == "metadata"
+            else method_override
+        )
         cooling_config, cooling_params = build_schure2009_cie_cooling(
             physical_scaling,
             floor_temperature_K=float(
                 metadata.get("cooling_floor_temperature_k", 1.0e4)
             ),
+            cooling_method=cooling_method,
         )
-        return cooling_config, cooling_params, True
+        return cooling_config, cooling_params, True, cooling_method
     if model != "simple_power_law":
         raise ValueError(
             "Das Medium verwendet ein nicht unterstütztes Cooling-Modell: "
             f"{model!r}."
         )
 
-    method_name = metadata.get("cooling_method", "explicit")
+    method_name = (
+        metadata.get("cooling_method", "explicit")
+        if method_override == "metadata"
+        else method_override
+    )
     if method_name == "implicit":
         method = IMPLICIT_COOLING
     elif method_name == "explicit":
@@ -210,7 +228,7 @@ def _cooling_from_metadata(metadata: dict):
             ),
         ),
     )
-    return cooling_config, cooling_params, True
+    return cooling_config, cooling_params, True, method_name
 
 
 def _next_available_path(output_path: Path) -> Path:
@@ -318,8 +336,14 @@ def _build_phase_two(
     else:
         boundary_settings = _periodic_boundaries()
 
-    cooling_config, cooling_params, cooling_enabled = _cooling_from_metadata(
-        metadata
+    (
+        cooling_config,
+        cooling_params,
+        cooling_enabled,
+        cooling_method_used,
+    ) = _cooling_from_metadata(
+        metadata,
+        method_override=args.phase_two_cooling_method,
     )
 
     config = SimulationConfig(
@@ -412,6 +436,7 @@ def _build_phase_two(
         cooling_enabled,
         cooling_config,
         cooling_params,
+        cooling_method_used,
     )
 
 
@@ -424,6 +449,7 @@ def _save_central_slices(
     duration: float,
     injected_energy: float,
     cooling_enabled: bool,
+    cooling_method_used: str | None,
 ) -> Path:
     states = np.asarray(snapshots.states)
     local_time_points = np.asarray(snapshots.time_points, dtype=float)
@@ -485,7 +511,7 @@ def _save_central_slices(
         "physical_scaling": metadata.get("physical_scaling"),
         "cooling": bool(cooling_enabled),
         "cooling_model": metadata.get("cooling_model") if cooling_enabled else None,
-        "cooling_method": metadata.get("cooling_method") if cooling_enabled else None,
+        "cooling_method": cooling_method_used if cooling_enabled else None,
         "cooling_factor": metadata.get("cooling_factor") if cooling_enabled else None,
         "cooling_exponent": (
             metadata.get("cooling_exponent") if cooling_enabled else None
@@ -540,6 +566,7 @@ def main() -> None:
         cooling_enabled,
         cooling_config,
         cooling_params,
+        cooling_method_used,
     ) = _build_phase_two(primitive_state, metadata, args)
 
     print(f"Geladenes turbulentes Medium: {args.input}")
@@ -548,7 +575,7 @@ def main() -> None:
     print(f"OU-Forcierung in Phase 2: {config.turbulent_forcing_config.turbulent_forcing}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
     if cooling_enabled:
-        print(f"Cooling-Methode in Phase 2: {metadata.get('cooling_method')}")
+        print(f"Cooling-Methode in Phase 2: {cooling_method_used}")
         if metadata.get("cooling_model") == "schure2009_cie":
             print(
                 "Cooling-Kurve in Phase 2: Schure 2009 CIE, "
@@ -583,6 +610,7 @@ def main() -> None:
         args.duration,
         injected_energy,
         cooling_enabled,
+        cooling_method_used,
     )
 
 
