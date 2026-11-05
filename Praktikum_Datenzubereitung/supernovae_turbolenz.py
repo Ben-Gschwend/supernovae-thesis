@@ -548,11 +548,17 @@ def main() -> None:
     print(f"OU-Forcierung in Phase 2: {config.turbulent_forcing_config.turbulent_forcing}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
     if cooling_enabled:
-        print(
-            "Cooling-Parameter in Phase 2: "
-            f"Methode={metadata.get('cooling_method')}, "
-            f"Faktor={metadata.get('cooling_factor')}"
-        )
+        print(f"Cooling-Methode in Phase 2: {metadata.get('cooling_method')}")
+        if metadata.get("cooling_model") == "schure2009_cie":
+            print(
+                "Cooling-Kurve in Phase 2: Schure 2009 CIE, "
+                f"Temperaturboden={metadata.get('cooling_floor_temperature_k')} K"
+            )
+        else:
+            print(
+                "Cooling-Kurve in Phase 2: simple_power_law, "
+                f"Faktor={metadata.get('cooling_factor')}"
+            )
     print(f"Zusätzliche Explosionsenergie in Codeeinheiten: {injected_energy:.8g}")
     physical_scaling = _physical_scaling_from_metadata(metadata)
     if physical_scaling is not None:
