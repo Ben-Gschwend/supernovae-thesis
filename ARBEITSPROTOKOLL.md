@@ -1166,3 +1166,31 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   die kurze Testdatei wurde deshalb noch nicht gespeichert.
 - **Nächster Schritt:** Vollständiger Phase-2-Lauf mit Radius `0.03`,
   `--num-snapshots 120` und Redistribute-Positivitätsschutz auf GPU 7.
+
+## 2026-11-05 – Dokumentation der numerischen Schutzmaßnahmen über beide Phasen
+
+- **Wichtige methodische Unterscheidung:** Das Anfangsmedium verwendet in
+  `anfangsmedium.py` bereits `TurbulentForcingConfig.vacuum_protection=True`.
+  Diese Sicherung gehört zur OU-Forcierung und schützt insbesondere vor sehr
+  kleinen Dichten beziehungsweise extremen Geschwindigkeiten, die durch die
+  Forcierung entstehen können.
+- **Phase 1:** Ein allgemeiner `PositivityConfig` mit
+  `per_stage_mode`/`per_step_mode` ist derzeit nicht gesetzt; damit bleiben
+  diese Modi auf astronomix-Standard (`NONE`). Die vorhandene Medium-Datei ist
+  dennoch endlich und numerisch erfolgreich bis `t=5` integriert worden.
+- **Phase 2:** Die Supernova-Simulation verwendet zusätzlich
+  `POSITIVITY_REDISTRIBUTE` während der Integrationsstufen und pro Zeitschritt
+  sowie `vacuum_rest=True`, weil die plötzliche Energieeinbringung einen viel
+  stärkeren Stoß erzeugt und die OU-Forcierung in Phase 2 abgeschaltet ist.
+- **Interpretation:** Die beiden Phasen verwenden damit nicht exakt dieselbe
+  numerische Schutzkonfiguration. Das ist für den aktuellen Stabilisierungslauf
+  bewusst dokumentiert. Eine vollständige methodische Vergleichsstudie müsste
+  Phase 1 mit demselben Positivitätsschutz neu erzeugen und anschließend Phase
+  2 aus diesem neuen Zustand wiederholen. Dabei wären Zustände, Gesamtmasse,
+  Gesamtenergie, Impuls und die Häufigkeit ausgelöster Schutzkorrekturen zu
+  vergleichen.
+- **Offene Entscheidung:** Vorläufig wird der gültige vorhandene
+  `t=5`-Zustand für den laufenden Supernova-Test weiterverwendet. Ob der
+  allgemeine Positivitätsschutz auch in Phase 1 als Produktionskonfiguration
+  aktiviert wird, bleibt nach dem Stabilitätstest und einer
+  Erhaltungsgrößenprüfung zu entscheiden.
