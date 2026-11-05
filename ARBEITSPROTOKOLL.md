@@ -1100,3 +1100,17 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Prüfungen:** Syntaxprüfung erfolgreich. Die Schure-Tabelle wurde CPU-seitig
   mit 110 Temperaturpunkten und endlichen Werten erzeugt; ein heißer Testwert
   kühlte nach einem Quellterm-Schritt ab. Keine GPU-Simulation gestartet.
+
+## 2026-11-05 – Speicherfehler nach Schure-Cooling-Lauf korrigiert
+
+- **Fehler:** Der Medium-Lauf mit Schure-CIE-Cooling erreichte `100 %`, brach
+  aber beim Speichern mit `NameError: cooling_floor_temperature_code` ab.
+  Die numerische Integration war damit nicht als gültige NPZ-Datei verfügbar.
+- **Ursache:** Die in `build_simulation()` berechnete Code-Temperatur des
+  Cooling-Bodens war im separaten Speicherschritt nicht erneut verfügbar.
+- **Korrektur:** Die Umrechnung wurde in eine gemeinsame Hilfsfunktion verlegt
+  und wird nun sowohl beim Aufbau der Simulation als auch beim Speichern aus
+  den CLI-Parametern rekonstruiert.
+- **Prüfung:** Python-Syntax und kleiner Schure-CIE-Konfigurations-Dry-Run
+  erfolgreich. Kein neuer Medium- oder Supernova-GPU-Lauf gestartet. Der
+  Medium-Lauf muss nach diesem Fix erneut ausgeführt werden.

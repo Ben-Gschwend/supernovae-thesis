@@ -274,6 +274,22 @@ def _physical_scaling_from_args(
     )
 
 
+def _cooling_floor_temperature_code(
+    args: argparse.Namespace,
+    physical_scaling: PhysicalScaling | None,
+) -> float:
+    if args.cooling_model == "schure2009_cie":
+        if physical_scaling is None:
+            raise ValueError(
+                "Die Schure-2009-Cooling-Kurve benötigt eine "
+                "physikalische Referenzskalierung."
+            )
+        return physical_scaling.temperature_code_from_kelvin(
+            args.cooling_floor_temperature_k
+        )
+    return float(args.cooling_floor_temperature)
+
+
 def _next_available_path(output_path: Path) -> Path:
     """Verhindere das Überschreiben eines vorhandenen Mediums."""
 
@@ -348,8 +364,8 @@ def build_simulation(args: argparse.Namespace):
             physical_scaling,
             floor_temperature_K=args.cooling_floor_temperature_k,
         )
-        cooling_floor_temperature_code = physical_scaling.temperature_code_from_kelvin(
-            args.cooling_floor_temperature_k
+        cooling_floor_temperature_code = _cooling_floor_temperature_code(
+            args, physical_scaling
         )
     else:
         cooling_params = CoolingParams(
@@ -372,7 +388,9 @@ def build_simulation(args: argparse.Namespace):
                 cooling_curve_type=SIMPLE_POWER_LAW,
             ),
         )
-        cooling_floor_temperature_code = args.cooling_floor_temperature
+        cooling_floor_temperature_code = _cooling_floor_temperature_code(
+            args, physical_scaling
+        )
 
     config = SimulationConfig(
         geometry=CARTESIAN,
@@ -463,6 +481,9 @@ def save_turbulent_medium(
             "zurückgegeben. Der Lauf wird nicht als gültiges Medium gespeichert."
         )
     physical_scaling = _physical_scaling_from_args(args)
+    cooling_floor_temperature_code = _cooling_floor_temperature_code(
+        args, physical_scaling
+    )
     metadata = {
         "purpose": "turbulent_initial_medium_before_supernova",
         "forcing": "ornstein_uhlenbeck",
