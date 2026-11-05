@@ -50,6 +50,7 @@ from astronomix.option_classes.simulation_config import (
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
+from .physikalische_cooling import build_schure2009_cie_cooling
 
 
 def _parse_args() -> argparse.Namespace:
@@ -154,6 +155,25 @@ def _cooling_from_metadata(metadata: dict):
         return CoolingConfig(), CoolingParams(), False
 
     model = metadata.get("cooling_model", "simple_power_law")
+    if model == "schure2009_cie":
+        physical_scaling = _physical_scaling_from_metadata(metadata)
+        if physical_scaling is None:
+            raise ValueError(
+                "Das Medium verwendet schure2009_cie, enthält aber keine "
+                "physical_scaling-Metadaten."
+            )
+        if metadata.get("cooling_method", "explicit") != "explicit":
+            raise ValueError(
+                "schure2009_cie benötigt in Phase 2 die explizite "
+                "Cooling-Integration."
+            )
+        cooling_config, cooling_params = build_schure2009_cie_cooling(
+            physical_scaling,
+            floor_temperature_K=float(
+                metadata.get("cooling_floor_temperature_k", 1.0e4)
+            ),
+        )
+        return cooling_config, cooling_params, True
     if model != "simple_power_law":
         raise ValueError(
             "Das Medium verwendet ein nicht unterstütztes Cooling-Modell: "
@@ -407,6 +427,7 @@ def _save_central_slices(
 ) -> Path:
     states = np.asarray(snapshots.states)
     local_time_points = np.asarray(snapshots.time_points, dtype=float)
+    physical_scaling = _physical_scaling_from_metadata(metadata)
     if states.ndim != 5:
         raise ValueError(
             "Die Supernova-Snapshots müssen die Form "
@@ -478,6 +499,14 @@ def _save_central_slices(
             metadata.get("cooling_floor_temperature")
             if cooling_enabled
             else None
+        ),
+        "cooling_floor_temperature_k": (
+            metadata.get("cooling_floor_temperature_k")
+            if cooling_enabled
+            else None
+        ),
+        "cooling_table_source": (
+            metadata.get("cooling_table_source") if cooling_enabled else None
         ),
     }
     absolute_time_points = medium_time + local_time_points

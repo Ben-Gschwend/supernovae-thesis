@@ -69,10 +69,33 @@ class PhysicalScaling:
 
     @property
     def velocity_unit_cm_per_s(self) -> float:
+        """Geschwindigkeitseinheit sqrt(p_0 / rho_0).
+
+        Die adiabatische Schallgeschwindigkeit ist in diesen Einheiten
+        ``sqrt(gamma)`` und nicht ``1``.
+        """
+
         return math.sqrt(
-            self.gamma
-            * self.pressure_unit_dyn_per_cm2
-            / self.density_unit_g_per_cm3
+            self.pressure_unit_dyn_per_cm2 / self.density_unit_g_per_cm3
+        )
+
+    @property
+    def sound_speed_unit_km_per_s(self) -> float:
+        return math.sqrt(self.gamma) * self.velocity_unit_cm_per_s / 1.0e5
+
+    def temperature_code_from_kelvin(self, temperature_K: float) -> float:
+        """Konvertiere T in die astronomix-Temperaturvariable.
+
+        astronomix verwendet ``T_code = k_B T / (m_p v_0^2)`` für die
+        Cooling-Kurve, wobei ``v_0`` die Codegeschwindigkeit ist.
+        """
+
+        if temperature_K <= 0.0:
+            raise ValueError("Die Temperatur muss positiv sein.")
+        return (
+            BOLTZMANN_ERG_PER_K
+            * temperature_K
+            / (HYDROGEN_MASS_G * self.velocity_unit_cm_per_s**2)
         )
 
     @property
@@ -107,6 +130,7 @@ class PhysicalScaling:
             "pressure_unit_dyn_per_cm2": float(self.pressure_unit_dyn_per_cm2),
             "pressure_unit_Pa": float(self.pressure_unit_dyn_per_cm2 * 0.1),
             "velocity_unit_km_per_s": float(self.velocity_unit_cm_per_s / 1.0e5),
+            "sound_speed_unit_km_per_s": float(self.sound_speed_unit_km_per_s),
             "time_unit_Myr": float(self.time_unit_myr),
             "energy_unit_erg": float(self.energy_unit_erg),
             "energy_unit_J": float(self.energy_unit_erg * 1.0e-7),

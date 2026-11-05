@@ -1068,3 +1068,35 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   vereinfachter Vergleichslauf.
 - **Prüfungen:** Python-Kompilierung, beide CLI-Hilfen und ein isolierter
   Roundtrip der Skalierungsmetadaten erfolgreich. Kein GPU-Lauf gestartet.
+
+## 2026-11-05 – Tabellierte radiative Cooling-Kurve ergänzt
+
+- **Ziel:** Das bisherige dimensionslose `simple_power_law`-Cooling soll für
+  den physikalisch skalierten Lauf durch eine temperaturabhängige radiative
+  Cooling-Funktion ersetzt werden.
+- **Modell:** Die vorhandene astronomix-Tabelle nach Schure et al. (2009)
+  wird als `schure2009_cie` verwendet. Sie beschreibt eine optisch dünne,
+  solar-metallische Plasma-Cooling-Kurve im kollisionalen
+  Ionisationsgleichgewicht (CIE) und basiert auf SPEX. Die Tabelle deckt etwa
+  `10^3.8...10^8.16 K` ab; für diesen Lauf wird ein Temperaturboden von
+  `10^4 K` verwendet.
+- **Konsistenzannahme:** CIE wird mit ionisiertem Gas und
+  `mean_molecular_weight=0.61` gekoppelt. Eine neutrale WNM-Skalierung mit
+  `mu=1.27` wird für dieses Cooling-Modell im Code abgewiesen.
+- **Codeänderung:** Neues Modul `physikalische_cooling.py` baut aus der
+  physikalischen Referenzskalierung die astronomix-`CodeUnits`, konvertiert
+  die Schure-Tabelle in Codeeinheiten und rekonstruiert sie in der
+  Supernova-Phase aus den Medium-Metadaten. `anfangsmedium.py` akzeptiert
+  `--cooling-model schure2009_cie`; die Metadaten dokumentieren Tabelle,
+  Temperaturboden und Quelle.
+- **Zeitintegration:** Für die tabellierte Kurve wird explizites Cooling
+  verlangt. astronomix markiert den impliziten Townsend-Pfad für diese
+  piecewise-Power-Law-Tabelle derzeit als nicht zuverlässig. Die bisherige
+  implizite Methode bleibt für das alte Test-Potenzgesetz verfügbar.
+- **Normierungskorrektur:** Die Geschwindigkeitseinheit ist jetzt korrekt
+  `sqrt(p_0/rho_0)`; die Schallgeschwindigkeit beträgt in Codeeinheiten
+  `sqrt(gamma)`. Dadurch stimmen Druck-, Temperatur- und Cooling-Umrechnung
+  dimensional konsistent überein.
+- **Prüfungen:** Syntaxprüfung erfolgreich. Die Schure-Tabelle wurde CPU-seitig
+  mit 110 Temperaturpunkten und endlichen Werten erzeugt; ein heißer Testwert
+  kühlte nach einem Quellterm-Schritt ab. Keine GPU-Simulation gestartet.

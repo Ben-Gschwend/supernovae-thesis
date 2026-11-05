@@ -55,6 +55,7 @@ from astronomix.option_classes.simulation_config import (
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
+from .physikalische_cooling import build_schure2009_cie_cooling
 
 
 def _parse_args() -> argparse.Namespace:
@@ -143,8 +144,17 @@ def _parse_args() -> argparse.Namespace:
         "--cooling",
         action="store_true",
         help=(
-            "Aktiviere den expliziten dimensionslosen Power-Law-Cooling-Term. "
+            "Aktiviere das gewählte Cooling-Modell. "
             "Ohne diese Option bleibt das Medium adiabatisch."
+        ),
+    )
+    parser.add_argument(
+        "--cooling-model",
+        choices=("simple_power_law", "schure2009_cie"),
+        default="simple_power_law",
+        help=(
+            "Cooling-Kurve: Test-Potenzgesetz oder tabellierte "
+            "Schure-2009-CIE-Kurve."
         ),
     )
     parser.add_argument(
@@ -170,6 +180,15 @@ def _parse_args() -> argparse.Namespace:
         type=float,
         default=1e-6,
         help="Untere Temperaturgrenze in den Codeeinheiten.",
+    )
+    parser.add_argument(
+        "--cooling-floor-temperature-k",
+        type=float,
+        default=1.0e4,
+        help=(
+            "Untere physikalische Temperaturgrenze der tabellierten "
+            "Cooling-Kurve in K."
+        ),
     )
     parser.add_argument(
         "--cooling-method",
@@ -312,24 +331,48 @@ def build_simulation(args: argparse.Namespace):
         forcing_wavenumber=args.forcing_wavenumber,
         forcing_amplitude=args.forcing_amplitude,
     )
-    cooling_params = CoolingParams(
-        floor_temperature=args.cooling_floor_temperature,
-        cooling_curve_params=SimplePowerLawParams(
-            factor=args.cooling_factor,
-            exponent=args.cooling_exponent,
-            reference_temperature=args.cooling_reference_temperature,
-        ),
-    )
-    cooling_method = (
-        IMPLICIT_COOLING if args.cooling_method == "implicit" else EXPLICIT_COOLING
-    )
-    cooling_config = CoolingConfig(
-        cooling=args.cooling,
-        cooling_method=cooling_method,
-        cooling_curve_config=CoolingCurveConfig(
-            cooling_curve_type=SIMPLE_POWER_LAW,
-        ),
-    )
+    physical_scaling = _physical_scaling_from_args(args)
+    if args.cooling and args.cooling_model == "schure2009_cie":
+        if physical_scaling is None:
+            raise ValueError(
+                "Die Schure-2009-Cooling-Kurve benötigt eine "
+                "physikalische Referenzskalierung."
+            )
+        if args.cooling_method != "explicit":
+            raise ValueError(
+                "Für schure2009_cie muss --cooling-method explicit verwendet "
+                "werden, weil der astronomix-Townsend-Pfad derzeit nicht "
+                "zuverlässig ist."
+            )
+        cooling_config, cooling_params = build_schure2009_cie_cooling(
+            physical_scaling,
+            floor_temperature_K=args.cooling_floor_temperature_k,
+        )
+        cooling_floor_temperature_code = physical_scaling.temperature_code_from_kelvin(
+            args.cooling_floor_temperature_k
+        )
+    else:
+        cooling_params = CoolingParams(
+            floor_temperature=args.cooling_floor_temperature,
+            cooling_curve_params=SimplePowerLawParams(
+                factor=args.cooling_factor,
+                exponent=args.cooling_exponent,
+                reference_temperature=args.cooling_reference_temperature,
+            ),
+        )
+        cooling_method = (
+            IMPLICIT_COOLING
+            if args.cooling_method == "implicit"
+            else EXPLICIT_COOLING
+        )
+        cooling_config = CoolingConfig(
+            cooling=args.cooling,
+            cooling_method=cooling_method,
+            cooling_curve_config=CoolingCurveConfig(
+                cooling_curve_type=SIMPLE_POWER_LAW,
+            ),
+        )
+        cooling_floor_temperature_code = args.cooling_floor_temperature
 
     config = SimulationConfig(
         geometry=CARTESIAN,
@@ -436,14 +479,35 @@ def save_turbulent_medium(
         "forcing_wavenumber": float(args.forcing_wavenumber),
         "forcing_amplitude": float(args.forcing_amplitude),
         "cooling": bool(args.cooling),
-        "cooling_model": "simple_power_law",
+        "cooling_model": args.cooling_model,
         "cooling_method": args.cooling_method,
-        "cooling_factor": float(args.cooling_factor),
-        "cooling_exponent": float(args.cooling_exponent),
-        "cooling_reference_temperature": float(
-            args.cooling_reference_temperature
+        "cooling_factor": (
+            float(args.cooling_factor)
+            if args.cooling_model == "simple_power_law"
+            else None
         ),
-        "cooling_floor_temperature": float(args.cooling_floor_temperature),
+        "cooling_exponent": (
+            float(args.cooling_exponent)
+            if args.cooling_model == "simple_power_law"
+            else None
+        ),
+        "cooling_reference_temperature": (
+            float(args.cooling_reference_temperature)
+            if args.cooling_model == "simple_power_law"
+            else None
+        ),
+        "cooling_floor_temperature": float(cooling_floor_temperature_code),
+        "cooling_floor_temperature_k": (
+            float(args.cooling_floor_temperature_k)
+            if args.cooling_model == "schure2009_cie"
+            else None
+        ),
+        "cooling_floor_temperature_code": float(cooling_floor_temperature_code),
+        "cooling_table_source": (
+            "Schure et al. (2009), arXiv:0909.5204"
+            if args.cooling_model == "schure2009_cie"
+            else None
+        ),
         "boundary": args.boundary,
         "vacuum_protection": True,
         "snapshots_saved": bool(args.save_snapshots),
