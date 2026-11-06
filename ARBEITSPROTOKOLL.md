@@ -1255,6 +1255,26 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Startbefehl wird mit einer separaten Logdatei dokumentiert beziehungsweise
   erneut ausgegeben.
 
+## 2026-11-06 – Referenzlauf für den Vergleich mit Phase-1-Positivitätsschutz
+
+- **Vorhandener Referenzlauf:** Der frühere erfolgreiche Supernova-Lauf ist
+  `supernovae_turbolenz_128cells_amp9_cooling15_implicit_cfl02_120snapshots.npz`.
+  Sein zugehöriges Medium ist
+  `turbulent_medium_128cells_t5_kf25_amp9_cooling_factor15_implicit_cfl02_gpu7.npz`.
+  Dieses Medium wurde vor der allgemeinen Phase-1-Positivitätserweiterung
+  erzeugt.
+- **Versuchsdesign:** Um ausschließlich den Einfluss des numerischen
+  Positivitätsschutzes im Anfangsmedium zu untersuchen, müssen Seed,
+  Forcierung, Cooling-Modell, Cooling-Parameter, CFL, Auflösung und alle
+  Supernova-Parameter identisch bleiben. Nur `--positivity-protection` in
+  Phase 1 darf sich unterscheiden.
+- **Korrektur der Planung:** Der aktuell gestartete neue Medium-Lauf verwendet
+  Schure-CIE-Cooling und `CFL=0.1`; der vorhandene Referenzlauf verwendet das
+  einfache Potenzgesetz mit Cooling-Faktor `15` und `CFL=0.2`. Dieser neue Lauf
+  ist deshalb kein isolierter Positivitätsschutz-Vergleich. Für einen sauberen
+  Vergleich muss das geschützte Medium mit den exakten Referenzparametern neu
+  erzeugt werden.
+
 ## 2026-11-06 – Allgemeiner Positivitätsschutz für Phase 1 optional aktiviert
 
 - **Ziel:** Ein Kontrollmedium erzeugen, das mit demselben allgemeinen
