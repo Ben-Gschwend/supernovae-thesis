@@ -1275,6 +1275,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Vergleich muss das geschützte Medium mit den exakten Referenzparametern neu
   erzeugt werden.
 
+## 2026-11-06 – Ziel des neuen Mediumlaufs: realistisches Cooling
+
+- **Nutzerentscheidung:** Der aktuelle Lauf mit Schure-2009-CIE-Cooling,
+  physikalischer Skalierung und aktiviertem Phase-1-Positivitätsschutz soll
+  nicht verworfen werden. Ziel ist zunächst die realistischere Cooling-Methode
+  zusammen mit der numerisch stabilisierten Mediumerzeugung zu untersuchen.
+- **Einordnung:** Der frühere Cooling-Faktor-15-Lauf bleibt eine historische
+  Referenz für die bisherige vereinfachte Cooling-Konfiguration. Unterschiede
+  zwischen diesem Lauf und dem neuen Schure-Lauf dürfen nicht ausschließlich
+  dem Positivitätsschutz zugeschrieben werden, da sich auch das Cooling-Modell
+  und die CFL-Konfiguration unterscheiden.
+- **Weiterer Vergleich:** Für eine spätere isolierte Untersuchung des
+  Phase-1-Positivitätsschutzes kann das bereits vorhandene Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_gpu7.npz` ohne den
+  allgemeinen Schutz als Schure-CIE-Kontrollmedium dienen. Die Supernova-Phase
+  müsste dann mit identischen Phase-2-Parametern auf beiden Schure-Medien
+  durchgeführt werden.
+
 ## 2026-11-06 – Allgemeiner Positivitätsschutz für Phase 1 optional aktiviert
 
 - **Ziel:** Ein Kontrollmedium erzeugen, das mit demselben allgemeinen
