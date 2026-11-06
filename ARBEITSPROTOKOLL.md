@@ -1366,3 +1366,29 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Kontrolle:** Der Prozess wurde auf GPU 2 mit ungefähr 98 Prozent
   Auslastung und bei etwa 0,5 Prozent Fortschritt bestätigt. Die Supernova-
   Phase läuft parallel weiterhin auf GPU 0.
+
+## 2026-11-06 – Prüfung von AthenaPK, Finite Volume und PP-Flux-Blending
+
+- **Paketprüfung:** In der verwendeten Installation `astronomix==0.6.6`
+  wurde kein Solver oder Backend mit der Bezeichnung AthenaPK gefunden. Das
+  Paket stellt die Solvermodi `FINITE_VOLUME` und `FINITE_DIFFERENCE` bereit.
+- **Aktueller Projektstand:** `anfangsmedium.py` und
+  `supernovae_turbolenz.py` verwenden beide `FINITE_VOLUME`. Die bisherige
+  Stabilisierung erfolgt dort über `PositivityConfig` mit
+  `per_stage_mode=REDISTRIBUTE`, `per_step_mode=REDISTRIBUTE` und
+  `vacuum_rest=True`.
+- **PP-Optionen:** `positivity_config.preserving_flux=True` ist im installierten
+  Paket im Finite-Differenzen-WENO-Flux-Blending implementiert. Für den
+  Finite-Volume-Pfad existiert dagegen der positivitätserhaltende
+  Rekonstruktions-Limiter `VAN_ALBADA_PP`. Dieser wurde bisher noch nicht in
+  einem Projektlauf verwendet.
+- **Entscheidung für den nächsten Vergleich:** Der nächste naheliegende,
+  direkt kompatible Test ist `FINITE_VOLUME` mit `VAN_ALBADA_PP` bei ansonsten
+  identischen Parametern. Ein separater `FINITE_DIFFERENCE`-Lauf mit
+  `preserving_flux=True` wäre ein anderer Solververgleich und muss wegen der
+  unterschiedlichen WENO-/Zeitintegrationspfade separat geprüft werden.
+- **Status:** Es wurde in diesem Prüfschritt kein GPU-Lauf gestartet. Die für
+  den Test zu verwendende GPU ist noch festzulegen. Der zuletzt geplante
+  ungeschützte Mediumlauf besitzt zusätzlich einen unabhängigen Fehler beim
+  Speichern der Metadaten (`vacuum_protection_enabled` nicht definiert), der
+  vor einem neuen Kontrolllauf behoben werden muss.
