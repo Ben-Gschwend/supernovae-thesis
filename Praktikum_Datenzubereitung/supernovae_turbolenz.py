@@ -23,6 +23,7 @@ import jax.numpy as jnp
 import numpy as np
 from astronomix import (
     CARTESIAN,
+    FINITE_DIFFERENCE,
     FINITE_VOLUME,
     SimulationConfig,
     SimulationParams,
@@ -49,6 +50,8 @@ from astronomix.option_classes.simulation_config import (
     PERIODIC_BOUNDARY,
     POSITIVITY_REDISTRIBUTE,
     PositivityConfig,
+    RK2_SSP,
+    RK4_SSP,
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
@@ -133,6 +136,15 @@ def _parse_args() -> argparse.Namespace:
         help=(
             "Aktiviert astronomix-Checks auf negative/nicht-endliche Zustände. "
             "Deutlich langsamer; nur für Diagnoseläufe verwenden."
+        ),
+    )
+    parser.add_argument(
+        "--pp-weno",
+        action="store_true",
+        help=(
+            "Verwende den Finite-Differenzen-WENO-Solver mit "
+            "positivity-preserving PP-Flux-Blending. Bei einem Medium mit "
+            "pp_weno-Metadaten wird diese Option automatisch aktiviert."
         ),
     )
     parser.add_argument(
@@ -359,13 +371,17 @@ def _build_phase_two(
         method_override=args.phase_two_cooling_method,
     )
 
+    pp_weno = bool(args.pp_weno or metadata.get("pp_weno", False))
+    solver_mode = FINITE_DIFFERENCE if pp_weno else FINITE_VOLUME
+
     config = SimulationConfig(
         geometry=CARTESIAN,
         dimensionality=3,
         box_size=box_size,
         num_cells=num_cells,
         mhd=False,
-        solver_mode=FINITE_VOLUME,
+        solver_mode=solver_mode,
+        time_integrator=(RK4_SSP if pp_weno else RK2_SSP),
         progress_bar=True,
         random_seed=int(metadata.get("random_seed", 42)),
         boundary_settings=boundary_settings,
@@ -382,6 +398,7 @@ def _build_phase_two(
             per_stage_mode=POSITIVITY_REDISTRIBUTE,
             per_step_mode=POSITIVITY_REDISTRIBUTE,
             vacuum_rest=True,
+            preserving_flux=pp_weno,
         ),
         runtime_debugging=args.runtime_debugging,
         cooling_config=cooling_config,
@@ -525,6 +542,8 @@ def _save_central_slices(
     runtime_debugging: bool,
     cooling_enabled: bool,
     cooling_method_used: str | None,
+    solver_mode: int,
+    pp_weno: bool,
 ) -> Path:
     states = np.asarray(snapshots.states)
     local_time_points = np.asarray(snapshots.time_points, dtype=float)
@@ -572,6 +591,10 @@ def _save_central_slices(
         "phase_end_time": float(medium_time + duration),
         "z_index": int(z_index),
         "box_size": metadata["box_size"],
+        "solver_mode": (
+            "finite_difference" if solver_mode == FINITE_DIFFERENCE else "finite_volume"
+        ),
+        "pp_weno": bool(pp_weno),
         "state_layout": {
             "density_index": density_index,
             "velocity_x_index": velocity_x_index,
@@ -659,6 +682,11 @@ def main() -> None:
     print(f"Supernova-Startzeit: t={medium_time:g}")
     print(f"Supernova-Endzeit: t={medium_time + args.duration:g}")
     print(f"OU-Forcierung in Phase 2: {config.turbulent_forcing_config.turbulent_forcing}")
+    print(
+        "Solver in Phase 2: "
+        f"{'FINITE_DIFFERENCE/WENO' if config.solver_mode == FINITE_DIFFERENCE else 'FINITE_VOLUME'}"
+    )
+    print(f"PP-WENO-Flux-Blending in Phase 2: {config.positivity_config.preserving_flux}")
     print(f"Laufzeit-Debugging: {config.runtime_debugging}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
     if cooling_enabled:
@@ -701,6 +729,8 @@ def main() -> None:
         args.runtime_debugging,
         cooling_enabled,
         cooling_method_used,
+        config.solver_mode,
+        config.positivity_config.preserving_flux,
     )
 
 

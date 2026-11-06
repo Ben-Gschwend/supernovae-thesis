@@ -26,6 +26,7 @@ import jax.numpy as jnp
 import numpy as np
 from astronomix import (
     CARTESIAN,
+    FINITE_DIFFERENCE,
     FINITE_VOLUME,
     SimulationConfig,
     SimulationParams,
@@ -54,6 +55,8 @@ from astronomix.option_classes.simulation_config import (
     PERIODIC_BOUNDARY,
     POSITIVITY_REDISTRIBUTE,
     PositivityConfig,
+    RK2_SSP,
+    RK4_SSP,
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
@@ -230,6 +233,15 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--pp-weno",
+        action="store_true",
+        help=(
+            "Verwende den astronomix-Finite-Differenzen-WENO-Solver mit "
+            "positivity-preserving PP-Flux-Blending. Ohne diese Option "
+            "bleibt der Finite-Volume-Solver aktiv."
+        ),
+    )
+    parser.add_argument(
         "--boundary",
         choices=("periodic", "open"),
         default="periodic",
@@ -374,6 +386,8 @@ def build_simulation(args: argparse.Namespace):
             per_step_mode=POSITIVITY_REDISTRIBUTE,
             vacuum_rest=True,
         )
+    if args.pp_weno:
+        positivity_config = positivity_config._replace(preserving_flux=True)
     physical_scaling = _physical_scaling_from_args(args)
     if args.cooling and args.cooling_model == "schure2009_cie":
         if physical_scaling is None:
@@ -425,7 +439,8 @@ def build_simulation(args: argparse.Namespace):
         box_size=args.box_size,
         num_cells=args.num_cells,
         mhd=False,
-        solver_mode=FINITE_VOLUME,
+        solver_mode=(FINITE_DIFFERENCE if args.pp_weno else FINITE_VOLUME),
+        time_integrator=(RK4_SSP if args.pp_weno else RK2_SSP),
         progress_bar=True,
         random_seed=args.seed,
         boundary_settings=(
@@ -512,6 +527,7 @@ def save_turbulent_medium(
     cooling_floor_temperature_code = _cooling_floor_temperature_code(
         args, physical_scaling
     )
+    vacuum_protection_enabled = not args.disable_vacuum_protection
     metadata = {
         "purpose": "turbulent_initial_medium_before_supernova",
         "forcing": "ornstein_uhlenbeck",
@@ -559,6 +575,8 @@ def save_turbulent_medium(
         ),
         "boundary": args.boundary,
         "vacuum_protection": bool(vacuum_protection_enabled),
+        "solver_mode": "finite_difference" if args.pp_weno else "finite_volume",
+        "pp_weno": bool(args.pp_weno),
         "positivity_protection": {
             "enabled": bool(args.positivity_protection),
             "per_stage": (
@@ -619,6 +637,7 @@ def main() -> None:
     print("Die Supernova-Energie wird in diesem Skript nicht eingebracht.")
     print(f"Allgemeiner Positivitätsschutz: {args.positivity_protection}")
     print(f"OU-Vakuumsicherung: {not args.disable_vacuum_protection}")
+    print(f"PP-WENO-Flux-Blending: {args.pp_weno}")
     result = time_integration(
         initial_state,
         config,

@@ -1392,3 +1392,26 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   ungeschützte Mediumlauf besitzt zusätzlich einen unabhängigen Fehler beim
   Speichern der Metadaten (`vacuum_protection_enabled` nicht definiert), der
   vor einem neuen Kontrolllauf behoben werden muss.
+
+## 2026-11-06 – PP-WENO als auswählbare Simulationsvariante ergänzt
+
+- **Implementierung:** `anfangsmedium.py` akzeptiert nun `--pp-weno`. Der
+  Schalter verwendet `FINITE_DIFFERENCE`, `RK4_SSP` und
+  `PositivityConfig(preserving_flux=True)`. Ohne den Schalter bleiben
+  `FINITE_VOLUME` und `RK2_SSP` unverändert aktiv.
+- **Phase 2:** `supernovae_turbolenz.py` übernimmt PP-WENO automatisch aus
+  den Medium-Metadaten oder kann es mit `--pp-weno` explizit aktivieren. Die
+  Phase 2 verwendet dann ebenfalls `FINITE_DIFFERENCE`, `RK4_SSP` und
+  `preserving_flux=True`, während die bisherige Redistribution zusätzlich
+  erhalten bleibt.
+- **Metadaten:** Solvermodus und PP-WENO-Aktivierung werden in Medium- und
+  Supernova-Ausgaben gespeichert beziehungsweise ausgegeben.
+- **Fehlerkorrektur:** Die bisher fehlende lokale Variable
+  `vacuum_protection_enabled` beim Speichern des Mediums wurde ergänzt. Damit
+  kann ein erfolgreich integrierter ungeschützter Lauf künftig als NPZ-Datei
+  gespeichert werden.
+- **Prüfungen:** `git diff --check`, Python-Syntaxprüfung, CLI-Hilfeprüfung
+  und eine CPU-only-Konfigurationsprüfung waren erfolgreich. Dabei wurde
+  `solver_mode=FINITE_DIFFERENCE`, `time_integrator=RK4_SSP` und
+  `preserving_flux=True` korrekt durch `finalize_config` bestätigt. Noch kein
+  GPU-Lauf gestartet; GPU-Freigabe steht aus.
