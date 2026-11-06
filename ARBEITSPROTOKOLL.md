@@ -1449,3 +1449,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Laufstatus:** Der bereits gestartete PP-WENO-Mediumlauf wurde vor dieser
   Änderung gestartet und verwendet den neuen Schalter noch nicht. Er wurde
   nicht gestoppt; die neue Speicheroption gilt ab dem nächsten Start.
+
+## 2026-11-06 – PP-WENO-Medium und anschließende Supernova verkettet
+
+- **Medium:** Der bereits laufende PP-WENO-Mediumlauf auf der ausdrücklich
+  freigegebenen GPU 5 wird nicht dupliziert. Er verwendet Seed `42`,
+  `128^3` Zellen, `CFL=0.1`, Forcierungsamplitude `9`, Wellenzahl `25`,
+  Schure-2009-CIE-Cooling und aktivierte OU-Vakuumsicherung, aber keinen
+  allgemeinen `REDISTRIBUTE`-Schutz. Ausgabe:
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`.
+- **Verkettete Phase 2:** Eine neue Zellij-Session
+  `ppweno-supernova-after-medium-gpu5-20261106` wartet auf den Abschluss des
+  Mediumprozesses und startet danach automatisch die Supernova auf GPU 5.
+  Die Phase 2 verwendet PP-WENO ohne Redistribution, `duration=0.1`,
+  `120` Snapshots, `E_SN=10^51 erg`, Explosionsradius `0.03`,
+  `smoothing_cells=2.0` und implizites Schure-CIE-Cooling.
+- **Fehleranalyse:** Die Supernova-Phase wird mit `--save-invalid` gestartet,
+  damit auch nicht-endliche Snapshots für die Diagnose gespeichert werden und
+  über die NPZ-Metadaten als `valid=false` erkennbar bleiben.
+- **Kontrolle beim Start der Verkettung:** Der Mediumprozess war aktiv auf GPU 5
+  bestätigt; die neue Wartesession war aktiv. Die Supernova hatte zu diesem
+  Zeitpunkt noch nicht begonnen.
