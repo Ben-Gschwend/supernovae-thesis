@@ -1214,3 +1214,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Nächster Versuch:** Zuerst ein kurzer diagnostischer GPU-Lauf mit derselben
   Konfiguration und aktiviertem `--runtime-debugging`, bevor neue Vergleichs-
   mediumläufe gestartet werden. Die dafür verwendete GPU ist noch festzulegen.
+
+## 2026-11-06 – Debug-Lauf auf GPU 5 durch JAX-Plattformkonfiguration abgebrochen
+
+- **Start:** Der diagnostische Phase-2-Lauf wurde mit
+  `CUDA_VISIBLE_DEVICES=5` und `JAX_PLATFORMS=cuda` gestartet. astronomix
+  bestätigte den PALLAS-Backend auf der GPU; damit war keine zweite GPU
+  sichtbar.
+- **Fehler:** Der Lauf erreichte die eigentliche numerische Stabilitätsprüfung
+  nicht. `--runtime-debugging` verwendet in astronomix einen
+  `jax.debug.callback`, der ein lokales CPU-Gerät benötigt. Mit
+  `JAX_PLATFORMS=cuda` war dieses Gerät deaktiviert, daher brach JAX mit
+  `jax.debug.callback failed to find a local CPU device` ab.
+- **Interpretation:** Dieser Abbruch sagt nichts über die physikalische
+  Stabilität der Supernova aus. GPU 5 wurde korrekt ausgewählt; für den
+  Diagnoselauf muss zusätzlich die CPU-Plattform verfügbar sein:
+  `CUDA_VISIBLE_DEVICES=5` zusammen mit `JAX_PLATFORMS=cuda,cpu`. Die
+  eigentliche Simulation bleibt dabei auf der einzigen sichtbaren GPU 5; die
+  CPU wird nur für den Debug-Callback verwendet.
+- **Nächster Schritt:** Diagnoselauf mit `JAX_PLATFORMS=cuda,cpu` und derselben
+  GPU-Maske wiederholen. Für einen strikt GPU-only Produktionslauf bleibt
+  `JAX_PLATFORMS=cuda` möglich, dann aber ohne `--runtime-debugging`.
