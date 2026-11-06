@@ -222,6 +222,14 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--disable-vacuum-protection",
+        action="store_true",
+        help=(
+            "Deaktiviere die OU-Forcierungs-Vakuumsicherung für einen "
+            "vollständig ungeschützten Kontrolllauf."
+        ),
+    )
+    parser.add_argument(
         "--boundary",
         choices=("periodic", "open"),
         default="periodic",
@@ -340,12 +348,14 @@ def build_simulation(args: argparse.Namespace):
         raise ValueError("--cooling-floor-temperature muss positiv sein.")
     _physical_scaling_from_args(args)
 
+    vacuum_protection_enabled = not args.disable_vacuum_protection
     forcing_config = TurbulentForcingConfig(
         turbulent_forcing=True,
         ou_forcing=True,
         # Die Forcierung kann in einzelnen Zellen sehr kleine Dichten erzeugen.
-        # Die astronomix-Sicherung ist deshalb standardmäßig aktiviert.
-        vacuum_protection=True,
+        # Die astronomix-Sicherung ist deshalb standardmäßig aktiviert; sie
+        # kann für den expliziten ungeschützten Kontrolllauf abgeschaltet werden.
+        vacuum_protection=vacuum_protection_enabled,
     )
     forcing_params = TurbulentForcingParams(
         protection_density_threshold=args.protection_density_threshold,
@@ -548,7 +558,7 @@ def save_turbulent_medium(
             else None
         ),
         "boundary": args.boundary,
-        "vacuum_protection": True,
+        "vacuum_protection": bool(vacuum_protection_enabled),
         "positivity_protection": {
             "enabled": bool(args.positivity_protection),
             "per_stage": (
@@ -608,6 +618,7 @@ def main() -> None:
     print("Starte ausschließlich die Erzeugung des turbulenten Anfangsmediums.")
     print("Die Supernova-Energie wird in diesem Skript nicht eingebracht.")
     print(f"Allgemeiner Positivitätsschutz: {args.positivity_protection}")
+    print(f"OU-Vakuumsicherung: {not args.disable_vacuum_protection}")
     result = time_integration(
         initial_state,
         config,
