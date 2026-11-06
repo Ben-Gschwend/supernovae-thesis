@@ -52,6 +52,8 @@ from astronomix.option_classes.simulation_config import (
     BoundarySettings,
     BoundarySettings1D,
     PERIODIC_BOUNDARY,
+    POSITIVITY_REDISTRIBUTE,
+    PositivityConfig,
     SnapshotSettings,
 )
 from .physikalische_einheiten import PhysicalScaling
@@ -212,6 +214,14 @@ def _parse_args() -> argparse.Namespace:
         help="Maximale Geschwindigkeit der astronomix-Vakuumsicherung.",
     )
     parser.add_argument(
+        "--positivity-protection",
+        action="store_true",
+        help=(
+            "Aktiviere zusätzlich den allgemeinen astronomix-"
+            "Positivitätsschutz mit REDISTRIBUTE und vacuum_rest."
+        ),
+    )
+    parser.add_argument(
         "--boundary",
         choices=("periodic", "open"),
         default="periodic",
@@ -347,6 +357,13 @@ def build_simulation(args: argparse.Namespace):
         forcing_wavenumber=args.forcing_wavenumber,
         forcing_amplitude=args.forcing_amplitude,
     )
+    positivity_config = PositivityConfig()
+    if args.positivity_protection:
+        positivity_config = PositivityConfig(
+            per_stage_mode=POSITIVITY_REDISTRIBUTE,
+            per_step_mode=POSITIVITY_REDISTRIBUTE,
+            vacuum_rest=True,
+        )
     physical_scaling = _physical_scaling_from_args(args)
     if args.cooling and args.cooling_model == "schure2009_cie":
         if physical_scaling is None:
@@ -405,6 +422,7 @@ def build_simulation(args: argparse.Namespace):
             _periodic_boundaries() if args.boundary == "periodic" else None
         ),
         turbulent_forcing_config=forcing_config,
+        positivity_config=positivity_config,
         cooling_config=cooling_config,
         return_snapshots=True,
         num_snapshots=args.num_snapshots,
@@ -531,6 +549,16 @@ def save_turbulent_medium(
         ),
         "boundary": args.boundary,
         "vacuum_protection": True,
+        "positivity_protection": {
+            "enabled": bool(args.positivity_protection),
+            "per_stage": (
+                "redistribute" if args.positivity_protection else "none"
+            ),
+            "per_step": (
+                "redistribute" if args.positivity_protection else "none"
+            ),
+            "vacuum_rest": bool(args.positivity_protection),
+        },
         "snapshots_saved": bool(args.save_snapshots),
         "state_layout": {
             "density_index": int(registered_variables.density_index),
@@ -579,6 +607,7 @@ def main() -> None:
 
     print("Starte ausschließlich die Erzeugung des turbulenten Anfangsmediums.")
     print("Die Supernova-Energie wird in diesem Skript nicht eingebracht.")
+    print(f"Allgemeiner Positivitätsschutz: {args.positivity_protection}")
     result = time_integration(
         initial_state,
         config,

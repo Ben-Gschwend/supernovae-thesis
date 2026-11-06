@@ -1235,3 +1235,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Nächster Schritt:** Diagnoselauf mit `JAX_PLATFORMS=cuda,cpu` und derselben
   GPU-Maske wiederholen. Für einen strikt GPU-only Produktionslauf bleibt
   `JAX_PLATFORMS=cuda` möglich, dann aber ohne `--runtime-debugging`.
+
+## 2026-11-06 – Allgemeiner Positivitätsschutz für Phase 1 optional aktiviert
+
+- **Ziel:** Ein Kontrollmedium erzeugen, das mit demselben allgemeinen
+  Positivitätsschutz wie die Supernova-Phase entwickelt wird. Der Zufallsseed
+  und alle physikalischen beziehungsweise turbulenten Parameter bleiben dabei
+  unverändert.
+- **Implementierung:** `anfangsmedium.py` besitzt nun den optionalen Schalter
+  `--positivity-protection`. Wenn er gesetzt ist, verwendet Phase 1
+  `POSITIVITY_REDISTRIBUTE` während der Integrationsstufen und pro Zeitschritt
+  sowie `vacuum_rest=True`. Ohne den Schalter bleibt das bisherige Verhalten
+  reproduzierbar.
+- **Metadaten:** Die NPZ-Datei speichert jetzt unter
+  `positivity_protection`, ob und mit welchen Modi der allgemeine Schutz aktiv
+  war. Die bereits vorhandene OU-Forcierungs-Vakuumsicherung bleibt unabhängig
+  davon aktiviert.
+- **Prüfung:** Python-Syntaxprüfung, Git-Diff-Prüfung und CLI-Hilfeprüfung
+  erfolgreich. Noch kein neues Medium und kein neuer Supernova-Lauf gestartet.
+- **Nächster Schritt:** Das Kontrollmedium mit identischem Seed und
+  `--positivity-protection` auf einer ausdrücklich ausgewählten freien GPU
+  erzeugen und anschließend mit identischer Phase-2-Konfiguration auswerten.
