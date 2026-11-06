@@ -1236,6 +1236,25 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   GPU-Maske wiederholen. Für einen strikt GPU-only Produktionslauf bleibt
   `JAX_PLATFORMS=cuda` möglich, dann aber ohne `--runtime-debugging`.
 
+## 2026-11-06 – Positivitätsgeschütztes Anfangsmedium benötigt CPU-Callback
+
+- **Lauf:** Das neue Anfangsmedium wurde mit `--positivity-protection`,
+  `CUDA_VISIBLE_DEVICES=5` und `JAX_PLATFORMS=cuda` gestartet.
+- **Ergebnis:** Der Lauf brach beim Eintritt in die Zeitintegration mit
+  `jax.debug.callback failed to find a local CPU device` ab. PALLAS wurde
+  korrekt auf der einzigen sichtbaren GPU 5 aktiviert; es entstand kein
+  numerischer Nichtendlichkeitsfehler und keine neue NPZ-Datei.
+- **Interpretation:** Der allgemeine Positivitätsschutz verwendet in dieser
+  astronomix-Konfiguration einen JAX-Callback, der zusätzlich ein lokales
+  CPU-Gerät benötigt. Für diesen Lauf muss deshalb
+  `JAX_PLATFORMS=cuda,cpu` gesetzt werden. `CUDA_VISIBLE_DEVICES=5` begrenzt
+  die GPU-Auswahl weiterhin ausschließlich auf GPU 5; die CPU wird nur für den
+  Callback verwendet.
+- **Zusätzlicher Bedienfehler:** In der verwendeten Shell-Zeile war die
+  `tee`-Umleitung nach `--output` nicht korrekt enthalten. Der korrigierte
+  Startbefehl wird mit einer separaten Logdatei dokumentiert beziehungsweise
+  erneut ausgegeben.
+
 ## 2026-11-06 – Allgemeiner Positivitätsschutz für Phase 1 optional aktiviert
 
 - **Ziel:** Ein Kontrollmedium erzeugen, das mit demselben allgemeinen
