@@ -1415,3 +1415,19 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   `solver_mode=FINITE_DIFFERENCE`, `time_integrator=RK4_SSP` und
   `preserving_flux=True` korrekt durch `finalize_config` bestätigt. Noch kein
   GPU-Lauf gestartet; GPU-Freigabe steht aus.
+
+## 2026-11-06 – PP-WENO ersetzt Redistribution in Phase 2
+
+- **Nutzerentscheidung:** PP-WENO soll als eigenständige numerische
+  Schutzmethode getestet werden. Die Supernova-Phase darf bei aktiviertem
+  PP-WENO daher nicht zusätzlich `REDISTRIBUTE` verwenden.
+- **Änderung:** `supernovae_turbolenz.py` verwendet bei PP-WENO nun ausschließlich
+  `PositivityConfig(preserving_flux=True)`. Damit sind
+  `per_stage_mode=NONE`, `per_step_mode=NONE` und `vacuum_rest=False` aktiv.
+  Ohne PP-WENO bleibt die bisherige Phase-2-Konfiguration mit Redistribution
+  und `vacuum_rest=True` unverändert.
+- **Metadaten:** Die Supernova-Ausgabe kennzeichnet bei PP-WENO die beiden
+  Redistribution-Modi als `none` und `vacuum_rest` als `false`.
+- **Status:** Noch kein GPU-Lauf gestartet. Der nächste Lauf ist ein PP-WENO-
+  Mediumlauf mit Seed 42 und den bisherigen realistischen Schure-CIE-
+  Parametern auf einer ausdrücklich freigegebenen GPU.

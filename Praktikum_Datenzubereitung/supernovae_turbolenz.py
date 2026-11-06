@@ -374,6 +374,15 @@ def _build_phase_two(
     pp_weno = bool(args.pp_weno or metadata.get("pp_weno", False))
     solver_mode = FINITE_DIFFERENCE if pp_weno else FINITE_VOLUME
 
+    if pp_weno:
+        phase_two_positivity = PositivityConfig(preserving_flux=True)
+    else:
+        phase_two_positivity = PositivityConfig(
+            per_stage_mode=POSITIVITY_REDISTRIBUTE,
+            per_step_mode=POSITIVITY_REDISTRIBUTE,
+            vacuum_rest=True,
+        )
+
     config = SimulationConfig(
         geometry=CARTESIAN,
         dimensionality=3,
@@ -390,16 +399,10 @@ def _build_phase_two(
             ou_forcing=False,
             vacuum_protection=False,
         ),
-        # Die konzentrierte Supernovaenergie erzeugt einen sehr starken Stoß.
-        # Die Redistribution stabilisiert starke Stoßwellen während der
-        # RK-Stufen und schützt zusätzlich den Zustand vor jedem neuen
-        # Zeitschritt, ohne NaN-Werte stillschweigend zu ersetzen.
-        positivity_config=PositivityConfig(
-            per_stage_mode=POSITIVITY_REDISTRIBUTE,
-            per_step_mode=POSITIVITY_REDISTRIBUTE,
-            vacuum_rest=True,
-            preserving_flux=pp_weno,
-        ),
+        # Bei der PP-WENO-Variante ersetzt das Flux-Blending die allgemeine
+        # Redistribution. Ohne PP-WENO bleibt die bisherige
+        # Redistribution-Konfiguration für starke Stoßwellen aktiv.
+        positivity_config=phase_two_positivity,
         runtime_debugging=args.runtime_debugging,
         cooling_config=cooling_config,
         return_snapshots=True,
@@ -612,9 +615,9 @@ def _save_central_slices(
         "explosion_radius_code": float(explosion_radius),
         "smoothing_cells": float(smoothing_cells),
         "positivity_protection": {
-            "per_stage": "redistribute",
-            "per_step": "redistribute",
-            "vacuum_rest": True,
+            "per_stage": "none" if pp_weno else "redistribute",
+            "per_step": "none" if pp_weno else "redistribute",
+            "vacuum_rest": False if pp_weno else True,
         },
         "runtime_debugging": bool(runtime_debugging),
         "physical_scaling": metadata.get("physical_scaling"),
