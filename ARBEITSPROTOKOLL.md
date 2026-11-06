@@ -1313,3 +1313,36 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Nächster Schritt:** Das Kontrollmedium mit identischem Seed und
   `--positivity-protection` auf einer ausdrücklich ausgewählten freien GPU
   erzeugen und anschließend mit identischer Phase-2-Konfiguration auswerten.
+
+## 2026-11-06 – Parallele Schure-CIE-Vergleichsläufe auf GPU 0 und GPU 2
+
+- **Nutzerfreigabe:** Der Nutzer gab GPU 0 und GPU 2 ausdrücklich als frei
+  und zur Verwendung frei.
+- **Lauf 1, GPU 0:** Die Supernova-Phase wurde im zuvor erfolgreich erzeugten
+  positivitätsgeschützten Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_positivity_gpu5_run2.npz`
+  gestartet. Verwendet werden `E_SN=10^51 erg`,
+  `explosion_radius=0.03`, `smoothing_cells=2.0`, `duration=0.1`,
+  `num_snapshots=120`, `CFL=0.1` und implizites Schure-2009-CIE-Cooling in
+  Phase 2. Ausgabe und Log sind
+  `supernovae_turbolenz_128cells_schure2009_protected_medium_gpu0_120snapshots.npz`
+  beziehungsweise die gleichnamige `.log`-Datei.
+- **Lauf 2, GPU 2:** Parallel wurde mit demselben Seed `42`, derselben
+  Auflösung `128^3`, derselben Forcierung (`amplitude=9`,
+  `wavenumber=25`), `CFL=0.1` und Schure-2009-CIE-Cooling ein neues
+  turbulentes Medium erzeugt. Der Lauf verwendet ausdrücklich
+  `--disable-vacuum-protection` und **nicht** `--positivity-protection`; damit
+  sind beide numerischen Schutzmodule für diesen Kontrolllauf deaktiviert.
+  Ausgabe und Log sind
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_unprotected_gpu2.npz`
+  beziehungsweise die gleichnamige `.log`-Datei.
+- **Technischer Hinweis:** Für die Supernova-Phase wird
+  `JAX_PLATFORMS=cuda,cpu` gesetzt, weil der verwendete astronomix-Positivitäts-
+  beziehungsweise Callback-Pfad ein lokales CPU-Gerät benötigt. Durch
+  `CUDA_VISIBLE_DEVICES=0` bleibt für die Rechnung ausschließlich GPU 0
+  sichtbar. Der ungeschützte Mediumlauf verwendet `JAX_PLATFORMS=cuda` und
+  `CUDA_VISIBLE_DEVICES=2`.
+- **Status beim Start:** Beide Prozesse wurden in separaten Zellij-Sessions
+  gestartet und beim ersten Check auf GPU 0 beziehungsweise GPU 2 als aktive
+  Python-Prozesse bestätigt. Der endgültige Erfolg oder ein numerischer
+  Abbruch ist zum Zeitpunkt dieses Eintrags noch offen.
