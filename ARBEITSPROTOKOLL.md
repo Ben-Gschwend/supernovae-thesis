@@ -1470,3 +1470,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Kontrolle beim Start der Verkettung:** Der Mediumprozess war aktiv auf GPU 5
   bestätigt; die neue Wartesession war aktiv. Die Supernova hatte zu diesem
   Zeitpunkt noch nicht begonnen.
+
+## 2026-11-06 – PP-WENO-Supernova in vorhandenem geschütztem Medium
+
+- **Ziel:** Die neue PP-WENO-Phase 2 unabhängig davon testen, ob auch das
+  turbulente Medium mit PP-WENO erzeugt wurde.
+- **Eingabe:** Verwendet wird das bereits validierte Schure-CIE-Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_positivity_gpu5_run2.npz`.
+  Dieses Medium wurde ursprünglich mit Finite Volume und allgemeinem
+  Positivitätsschutz erzeugt.
+- **Phase 2:** Der Supernovalauf verwendet auf GPU 6 explizit
+  `FINITE_DIFFERENCE/WENO`, `RK4_SSP` und `preserving_flux=True`. Die
+  Redistribution und `vacuum_rest` sind in dieser PP-WENO-Variante deaktiviert.
+  Verwendet werden `duration=0.1`, `120` Snapshots, `E_SN=10^51 erg`,
+  `explosion_radius=0.03`, `smoothing_cells=2.0`, `CFL=0.1` und implizites
+  Schure-2009-CIE-Cooling.
+- **Fehleranalyse:** `--save-invalid` ist aktiviert. Ausgabe und Log sind
+  `supernovae_turbolenz_128cells_schure2009_existing_protected_medium_ppweno_gpu6_120snapshots.npz`
+  beziehungsweise die gleichnamige `.log`-Datei. Ungültige Ergebnisse werden
+  gespeichert, aber in den Metadaten als `valid=false` markiert.
+- **Kontrolle beim Start:** GPU 6 und Prozess PID 888876 wurden bestätigt; der
+  Log weist den erwarteten Finite-Difference/WENO-Solver und PP-WENO aus.
