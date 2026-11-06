@@ -1346,3 +1346,23 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   gestartet und beim ersten Check auf GPU 0 beziehungsweise GPU 2 als aktive
   Python-Prozesse bestätigt. Der endgültige Erfolg oder ein numerischer
   Abbruch ist zum Zeitpunkt dieses Eintrags noch offen.
+
+## 2026-11-06 – Neustart des ungeschützten Medium-Kontrolllaufs
+
+- **Ursache des Neustarts:** Der erste Lauf auf GPU 2 wurde mit
+  `JAX_PLATFORMS=cuda` gestartet und scheiterte bereits in der astronomix-
+  Zeitintegration an einem JAX-Callback, der ein lokales CPU-Gerät benötigt.
+  Es lag dabei noch kein Hinweis auf einen physikalischen Nichtendlichkeits-
+  fehler vor.
+- **Neuer Lauf:** Der Kontrolllauf wurde mit unveränderten physikalischen und
+  numerischen Parametern erneut gestartet, nun mit
+  `JAX_PLATFORMS=cuda,cpu`. `CUDA_VISIBLE_DEVICES=2` stellt weiterhin sicher,
+  dass nur GPU 2 verwendet wird. `--disable-vacuum-protection` bleibt gesetzt;
+  `--positivity-protection` wird nicht verwendet.
+- **Session und Ausgabe:** Der Lauf läuft in
+  `medium-unprotected-gpu2-20261106-rerun`. Ausgabe und Log sind
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_unprotected_gpu2_rerun.npz`
+  beziehungsweise die gleichnamige `.log`-Datei.
+- **Kontrolle:** Der Prozess wurde auf GPU 2 mit ungefähr 98 Prozent
+  Auslastung und bei etwa 0,5 Prozent Fortschritt bestätigt. Die Supernova-
+  Phase läuft parallel weiterhin auf GPU 0.
