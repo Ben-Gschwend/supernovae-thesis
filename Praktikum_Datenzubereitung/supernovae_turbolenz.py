@@ -148,6 +148,14 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--save-invalid",
+        action="store_true",
+        help=(
+            "Speichere auch Supernova-Snapshots mit nicht-endlichen Werten. "
+            "Die NPZ-Metadaten markieren solche Ausgaben mit valid=false."
+        ),
+    )
+    parser.add_argument(
         "--phase-two-cooling-method",
         choices=("metadata", "explicit", "implicit"),
         default="metadata",
@@ -547,6 +555,7 @@ def _save_central_slices(
     cooling_method_used: str | None,
     solver_mode: int,
     pp_weno: bool,
+    save_invalid: bool,
 ) -> Path:
     states = np.asarray(snapshots.states)
     local_time_points = np.asarray(snapshots.time_points, dtype=float)
@@ -558,7 +567,8 @@ def _save_central_slices(
         )
     if len(local_time_points) != states.shape[0]:
         raise ValueError("Anzahl der Zeitpunkte und Zustände stimmt nicht überein.")
-    if not np.all(np.isfinite(states)):
+    finite_states = bool(np.all(np.isfinite(states)))
+    if not finite_states and not save_invalid:
         raise RuntimeError(
             "Die Supernova-Snapshots enthalten nicht-endliche Werte. "
             "Die Phase 2 ist numerisch ungültig und wird nicht gespeichert. "
@@ -566,10 +576,15 @@ def _save_central_slices(
                 states, local_time_points, registered_variables
             )
         )
-    if (
-        not np.all(np.isfinite(local_time_points))
-        or np.any(np.diff(local_time_points) <= 0.0)
-    ):
+    finite_time_points = bool(
+        local_time_points.ndim == 1 and np.all(np.isfinite(local_time_points))
+    )
+    monotone_time_points = bool(
+        finite_time_points
+        and len(local_time_points) >= 2
+        and np.all(np.diff(local_time_points) > 0.0)
+    )
+    if not monotone_time_points and not save_invalid:
         raise RuntimeError(
             "Die lokalen Supernova-Zeitpunkte sind ungültig oder nicht "
             "streng ansteigend."
@@ -598,6 +613,15 @@ def _save_central_slices(
             "finite_difference" if solver_mode == FINITE_DIFFERENCE else "finite_volume"
         ),
         "pp_weno": bool(pp_weno),
+        "valid": bool(finite_states and monotone_time_points),
+        "invalid_output_saved": bool(
+            save_invalid and not (finite_states and monotone_time_points)
+        ),
+        "validity_diagnostics": {
+            "finite_states": finite_states,
+            "finite_time_points": finite_time_points,
+            "strictly_monotone_time_points": monotone_time_points,
+        },
         "state_layout": {
             "density_index": density_index,
             "velocity_x_index": velocity_x_index,
@@ -647,6 +671,12 @@ def _save_central_slices(
             metadata.get("cooling_table_source") if cooling_enabled else None
         ),
     }
+    if not finite_states:
+        metadata_out["validity_diagnostics"]["snapshot_details"] = (
+            _snapshot_finiteness_diagnostics(
+                states, local_time_points, registered_variables
+            )
+        )
     absolute_time_points = medium_time + local_time_points
     np.savez_compressed(
         output_path,
@@ -690,6 +720,7 @@ def main() -> None:
         f"{'FINITE_DIFFERENCE/WENO' if config.solver_mode == FINITE_DIFFERENCE else 'FINITE_VOLUME'}"
     )
     print(f"PP-WENO-Flux-Blending in Phase 2: {config.positivity_config.preserving_flux}")
+    print(f"Ungültige Ergebnisse speichern: {args.save_invalid}")
     print(f"Laufzeit-Debugging: {config.runtime_debugging}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
     if cooling_enabled:
@@ -734,6 +765,7 @@ def main() -> None:
         cooling_method_used,
         config.solver_mode,
         config.positivity_config.preserving_flux,
+        args.save_invalid,
     )
 
 

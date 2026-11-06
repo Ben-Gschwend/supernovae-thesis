@@ -113,6 +113,14 @@ def _parse_args() -> argparse.Namespace:
             "mehr Speicherplatz."
         ),
     )
+    parser.add_argument(
+        "--save-invalid",
+        action="store_true",
+        help=(
+            "Speichere auch nicht-endliche oder zeitlich ungültige Ergebnisse. "
+            "Die NPZ-Metadaten markieren solche Ausgaben mit valid=false."
+        ),
+    )
     parser.add_argument("--density", type=float, default=1.0)
     parser.add_argument(
         "--pressure",
@@ -508,17 +516,20 @@ def save_turbulent_medium(
         )
 
     primitive_state = np.asarray(result.final_state)
-    if not np.all(np.isfinite(primitive_state)):
+    finite_final_state = bool(np.all(np.isfinite(primitive_state)))
+    if not finite_final_state and not args.save_invalid:
         raise RuntimeError(
             "astronomix hat einen nicht-endlichen final_state zurückgegeben. "
             "Der Lauf ist numerisch ungültig und wird nicht gespeichert."
         )
     time_points = np.asarray(result.time_points)
-    if (
-        time_points.ndim != 1
-        or not np.all(np.isfinite(time_points))
-        or np.any(np.diff(time_points) <= 0.0)
-    ):
+    finite_time_points = bool(time_points.ndim == 1 and np.all(np.isfinite(time_points)))
+    monotone_time_points = bool(
+        finite_time_points
+        and len(time_points) >= 2
+        and np.all(np.diff(time_points) > 0.0)
+    )
+    if not monotone_time_points and not args.save_invalid:
         raise RuntimeError(
             "astronomix hat ungültige oder nicht streng ansteigende time_points "
             "zurückgegeben. Der Lauf wird nicht als gültiges Medium gespeichert."
@@ -574,6 +585,15 @@ def save_turbulent_medium(
             else None
         ),
         "boundary": args.boundary,
+        "valid": bool(finite_final_state and monotone_time_points),
+        "invalid_output_saved": bool(
+            args.save_invalid and not (finite_final_state and monotone_time_points)
+        ),
+        "validity_diagnostics": {
+            "finite_final_state": finite_final_state,
+            "finite_time_points": finite_time_points,
+            "strictly_monotone_time_points": monotone_time_points,
+        },
         "vacuum_protection": bool(vacuum_protection_enabled),
         "solver_mode": "finite_difference" if args.pp_weno else "finite_volume",
         "pp_weno": bool(args.pp_weno),
@@ -616,13 +636,19 @@ def save_turbulent_medium(
     states = getattr(result, "states", None)
     if states is not None:
         states = np.asarray(states)
-        if not np.all(np.isfinite(states)):
+        finite_states = bool(np.all(np.isfinite(states)))
+        if not finite_states and not args.save_invalid:
             raise RuntimeError(
                 "astronomix hat nicht-endliche Snapshotwerte zurückgegeben. "
                 "Der Lauf wird nicht als gültiger Snapshot-Datensatz gespeichert."
             )
         arrays["states"] = states
+        metadata["validity_diagnostics"]["finite_states"] = finite_states
+        if not finite_states:
+            metadata["valid"] = False
+            metadata["invalid_output_saved"] = bool(args.save_invalid)
 
+    arrays["metadata_json"] = np.asarray(json.dumps(metadata, sort_keys=True))
     np.savez_compressed(output_path, **arrays)
     print(f"Gespeichertes turbulentes Anfangsmedium: {output_path}")
     print(f"Zustandsform: {primitive_state.shape}")
@@ -638,6 +664,7 @@ def main() -> None:
     print(f"Allgemeiner Positivitätsschutz: {args.positivity_protection}")
     print(f"OU-Vakuumsicherung: {not args.disable_vacuum_protection}")
     print(f"PP-WENO-Flux-Blending: {args.pp_weno}")
+    print(f"Ungültige Ergebnisse speichern: {args.save_invalid}")
     result = time_integration(
         initial_state,
         config,

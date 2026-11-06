@@ -1431,3 +1431,21 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Status:** Noch kein GPU-Lauf gestartet. Der nächste Lauf ist ein PP-WENO-
   Mediumlauf mit Seed 42 und den bisherigen realistischen Schure-CIE-
   Parametern auf einer ausdrücklich freigegebenen GPU.
+
+## 2026-11-06 – Ungültige Ergebnisse optional zur Fehleranalyse speichern
+
+- **Nutzerentscheidung:** Nicht-endliche oder zeitlich ungültige Ergebnisse
+  sollen für die Ursachenanalyse gespeichert werden können, dürfen aber nicht
+  als gültige Simulationsdaten behandelt werden.
+- **Implementierung:** `anfangsmedium.py` und
+  `supernovae_turbolenz.py` besitzen nun `--save-invalid`. Mit diesem Schalter
+  werden auch Rohzustände mit NaN/Inf gespeichert; die NPZ-Metadaten enthalten
+  dann `valid=false`, `invalid_output_saved=true` und
+  `validity_diagnostics`. Ohne den Schalter bleibt das bisherige Verhalten
+  bestehen: ungültige Zustände werden verworfen und als Fehler gemeldet.
+- **Supernova-Diagnostik:** Bei nicht-endlichen Supernova-Snapshots wird die
+  vorhandene Detaildiagnose zum ersten fehlerhaften Snapshot zusätzlich in den
+  Metadaten abgelegt.
+- **Laufstatus:** Der bereits gestartete PP-WENO-Mediumlauf wurde vor dieser
+  Änderung gestartet und verwendet den neuen Schalter noch nicht. Er wurde
+  nicht gestoppt; die neue Speicheroption gilt ab dem nächsten Start.
