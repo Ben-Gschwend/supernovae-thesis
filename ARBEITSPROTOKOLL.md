@@ -1513,3 +1513,23 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Vergleichsdatensatz verwendet werden.
 - **GPU-Status:** Beide Python-Prozesse sind beendet; GPU 5 und GPU 6 sind
   wieder frei.
+
+## 2026-11-07 – Supernova im numerisch gültigen PP-WENO-Medium
+
+- **Eingabe:** Für den neuen Lauf wird das numerisch gültige Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`
+  verwendet. Damit sind sowohl die Mediumerzeugung als auch die Supernova-
+  Phase auf PP-WENO abgestimmt.
+- **Phase 2:** Die Supernova läuft mit `FINITE_DIFFERENCE/WENO`,
+  `preserving_flux=True`, ohne Redistribution und ohne `vacuum_rest`. Die
+  Parameter sind `duration=0.1`, `120` Snapshots, `E_SN=10^51 erg`,
+  `explosion_radius=0.03`, `smoothing_cells=2.0`, `CFL=0.1` und implizites
+  Schure-2009-CIE-Cooling.
+- **Hardware und Ausgabe:** Der Lauf wurde nach Prüfung einer freien GPU auf
+  GPU 1 in der Zellij-Session `supernova-valid-ppweno-medium-gpu1-20261107`
+  gestartet. Ausgabe und Log sind
+  `supernovae_turbolenz_128cells_schure2009_valid_ppweno_medium_gpu1_120snapshots.npz`
+  beziehungsweise die gleichnamige `.log`-Datei. `--save-invalid` bleibt
+  aktiviert, um einen möglichen numerischen Fehler diagnostisch zu sichern.
+- **Kontrolle beim Start:** Prozess PID 1836259 und GPU 1 wurden bestätigt;
+  der Fortschritt lag beim ersten Check bei etwa 0,1 Prozent.
