@@ -1491,3 +1491,25 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   gespeichert, aber in den Metadaten als `valid=false` markiert.
 - **Kontrolle beim Start:** GPU 6 und Prozess PID 888876 wurden bestätigt; der
   Log weist den erwarteten Finite-Difference/WENO-Solver und PP-WENO aus.
+
+## 2026-11-07 – Ergebnis des PP-WENO-Medium- und Supernovatests
+
+- **Medium:** Der PP-WENO-Mediumlauf auf GPU 5 wurde erfolgreich beendet und
+  als `turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`
+  gespeichert. Die Metadaten bestätigen `solver_mode=finite_difference`,
+  `pp_weno=true`, deaktivierte Redistribution und aktivierte
+  OU-Vakuumsicherung. Der Lauf wurde vor der Einführung von `--save-invalid`
+  gestartet; deshalb enthält seine ältere Ausgabe noch kein explizites
+  `valid`-Feld. Die damalige Speicherlogik hätte nicht-endliche Zustände nicht
+  gespeichert, daher ist die gespeicherte Mediumdatei als gültig einzustufen.
+- **Supernova:** Die Phase 2 auf GPU 6 wurde mit demselben PP-WENO-Solver,
+  ohne Redistribution, abgeschlossen und dank `--save-invalid` gespeichert:
+  `supernovae_turbolenz_128cells_schure2009_existing_protected_medium_ppweno_gpu6_120snapshots.npz`.
+  Die Metadaten melden `valid=false` und `invalid_output_saved=true`.
+- **Numerischer Fehler:** Der erste fehlerhafte Snapshot ist `index=119` mit
+  lokaler Zeit `NaN`; betroffen sind Dichte, alle drei Geschwindigkeiten und
+  Druck. Die Zeitpunkte sind nicht streng monoton. Die Datei ist damit nur für
+  Fehleranalyse geeignet und darf nicht als gültiger Trainings- oder
+  Vergleichsdatensatz verwendet werden.
+- **GPU-Status:** Beide Python-Prozesse sind beendet; GPU 5 und GPU 6 sind
+  wieder frei.
