@@ -1533,3 +1533,19 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   aktiviert, um einen möglichen numerischen Fehler diagnostisch zu sichern.
 - **Kontrolle beim Start:** Prozess PID 1836259 und GPU 1 wurden bestätigt;
   der Fortschritt lag beim ersten Check bei etwa 0,1 Prozent.
+
+## 2026-11-07 – PP-WENO-Supernova im gültigen PP-WENO-Medium beendet
+
+- **Ergebnis:** Die Supernova-Simulation im numerisch gültigen PP-WENO-Medium
+  wurde auf GPU 1 vollständig durchlaufen und als NPZ-Datei gespeichert:
+  `supernovae_turbolenz_128cells_schure2009_valid_ppweno_medium_gpu1_120snapshots.npz`.
+- **Numerische Gültigkeit:** Die Ausgabe ist trotz erfolgreichem Durchlauf
+  ungültig: `valid=false`, `invalid_output_saved=true`. Die Zeitpunkte reichen
+  nicht endlich bis `t=5.1`; der erste fehlerhafte Snapshot ist `index=119`
+  mit lokaler Zeit `NaN`. Dichte, alle drei Geschwindigkeiten und Druck sind
+  im fehlerhaften Snapshot nicht endlich.
+- **Interpretation:** PP-WENO ohne Redistribution stabilisiert diesen
+  Supernova-Lauf in dem zuvor gültigen Medium nicht bis zum letzten Snapshot.
+  Die Datei bleibt für die Fehleranalyse erhalten, darf aber nicht als gültiger
+  Simulations- oder Trainingsdatensatz verwendet werden.
+- **GPU-Status:** Prozess und GPU-Lauf sind beendet; GPU 1 ist wieder frei.
