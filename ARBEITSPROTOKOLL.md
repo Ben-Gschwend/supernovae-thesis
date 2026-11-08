@@ -1564,3 +1564,20 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   ebenfalls seine bisherige Redistribution-Konfiguration.
 - **Prüfung:** Syntaxprüfung, CLI-Hilfe und Git-Diff-Prüfung erfolgreich. Der
   Vergleichslauf auf GPU 1 steht nach dem Commit noch aus.
+
+## 2026-11-08 – Vergleichslauf PP-WENO plus Redistribution gestartet
+
+- **Start:** Der Vergleichslauf wurde nach Prüfung der freien GPU 1 in der
+  Zellij-Session `supernova-ppweno-redistribute-gpu1-20261108` gestartet.
+- **Konfiguration:** Eingabe ist das gültige PP-WENO-Medium
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`.
+  Aktiv sind `FINITE_DIFFERENCE/WENO`, `preserving_flux=True`,
+  `REDISTRIBUTE`, `vacuum_rest=True`, `CFL=0.1`, 120 Snapshots,
+  `E_SN=10^51 erg`, Explosionsradius `0.03`, implizites Schure-CIE-Cooling
+  und `--save-invalid`.
+- **Ausgabe:**
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_medium_gpu1_120snapshots.npz`
+  mit gleichnamigem Log.
+- **Kontrolle:** Der Prozess wurde auf GPU 1 bestätigt. Das Log weist beide
+  Schutzkomponenten ausdrücklich als aktiv aus; die Supernova-Integration hat
+  begonnen.
