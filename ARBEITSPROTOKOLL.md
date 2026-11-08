@@ -1549,3 +1549,18 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Die Datei bleibt für die Fehleranalyse erhalten, darf aber nicht als gültiger
   Simulations- oder Trainingsdatensatz verwendet werden.
 - **GPU-Status:** Prozess und GPU-Lauf sind beendet; GPU 1 ist wieder frei.
+
+## 2026-11-08 – PP-WENO mit zusätzlichem Redistribution- und Vacuum-Rest-Schutz
+
+- **Nutzerentscheidung:** Nach dem ungültigen PP-WENO-Lauf soll die Wirkung
+  einer kombinierten Schutzkonfiguration getestet werden.
+- **Neue Option:** `supernovae_turbolenz.py` akzeptiert nun
+  `--pp-weno-with-redistribute`. Diese Variante aktiviert gleichzeitig
+  `FINITE_DIFFERENCE/WENO`, `preserving_flux=True`,
+  `per_stage_mode=REDISTRIBUTE`, `per_step_mode=REDISTRIBUTE` und
+  `vacuum_rest=True`.
+- **Abgrenzung:** Der bisherige reine PP-WENO-Modus bleibt unverändert und
+  verwendet keine Redistribution. Der normale Finite-Volume-Modus behält
+  ebenfalls seine bisherige Redistribution-Konfiguration.
+- **Prüfung:** Syntaxprüfung, CLI-Hilfe und Git-Diff-Prüfung erfolgreich. Der
+  Vergleichslauf auf GPU 1 steht nach dem Commit noch aus.

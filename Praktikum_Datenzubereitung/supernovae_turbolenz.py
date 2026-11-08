@@ -148,6 +148,14 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--pp-weno-with-redistribute",
+        action="store_true",
+        help=(
+            "Aktiviere PP-WENO zusammen mit dem bisherigen "
+            "REDISTRIBUTE- und vacuum_rest-Schutz."
+        ),
+    )
+    parser.add_argument(
         "--save-invalid",
         action="store_true",
         help=(
@@ -379,16 +387,24 @@ def _build_phase_two(
         method_override=args.phase_two_cooling_method,
     )
 
-    pp_weno = bool(args.pp_weno or metadata.get("pp_weno", False))
+    pp_weno = bool(
+        args.pp_weno
+        or args.pp_weno_with_redistribute
+        or metadata.get("pp_weno", False)
+    )
+    redistribution_enabled = bool(
+        not pp_weno or args.pp_weno_with_redistribute
+    )
     solver_mode = FINITE_DIFFERENCE if pp_weno else FINITE_VOLUME
 
-    if pp_weno:
+    if not redistribution_enabled:
         phase_two_positivity = PositivityConfig(preserving_flux=True)
     else:
         phase_two_positivity = PositivityConfig(
             per_stage_mode=POSITIVITY_REDISTRIBUTE,
             per_step_mode=POSITIVITY_REDISTRIBUTE,
             vacuum_rest=True,
+            preserving_flux=pp_weno,
         )
 
     config = SimulationConfig(
@@ -555,6 +571,7 @@ def _save_central_slices(
     cooling_method_used: str | None,
     solver_mode: int,
     pp_weno: bool,
+    redistribution_enabled: bool,
     save_invalid: bool,
 ) -> Path:
     states = np.asarray(snapshots.states)
@@ -639,10 +656,11 @@ def _save_central_slices(
         "explosion_radius_code": float(explosion_radius),
         "smoothing_cells": float(smoothing_cells),
         "positivity_protection": {
-            "per_stage": "none" if pp_weno else "redistribute",
-            "per_step": "none" if pp_weno else "redistribute",
-            "vacuum_rest": False if pp_weno else True,
+            "per_stage": "redistribute" if redistribution_enabled else "none",
+            "per_step": "redistribute" if redistribution_enabled else "none",
+            "vacuum_rest": bool(redistribution_enabled),
         },
+        "redistribution_enabled": bool(redistribution_enabled),
         "runtime_debugging": bool(runtime_debugging),
         "physical_scaling": metadata.get("physical_scaling"),
         "cooling": bool(cooling_enabled),
@@ -720,6 +738,10 @@ def main() -> None:
         f"{'FINITE_DIFFERENCE/WENO' if config.solver_mode == FINITE_DIFFERENCE else 'FINITE_VOLUME'}"
     )
     print(f"PP-WENO-Flux-Blending in Phase 2: {config.positivity_config.preserving_flux}")
+    print(
+        "REDISTRIBUTE/vacuum_rest in Phase 2: "
+        f"{config.positivity_config.per_stage_mode == POSITIVITY_REDISTRIBUTE}"
+    )
     print(f"Ungültige Ergebnisse speichern: {args.save_invalid}")
     print(f"Laufzeit-Debugging: {config.runtime_debugging}")
     print(f"Cooling in Phase 2: {cooling_enabled}")
@@ -765,6 +787,7 @@ def main() -> None:
         cooling_method_used,
         config.solver_mode,
         config.positivity_config.preserving_flux,
+        config.positivity_config.per_stage_mode == POSITIVITY_REDISTRIBUTE,
         args.save_invalid,
     )
 
