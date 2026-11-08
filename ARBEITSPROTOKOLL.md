@@ -1581,3 +1581,21 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Kontrolle:** Der Prozess wurde auf GPU 1 bestätigt. Das Log weist beide
   Schutzkomponenten ausdrücklich als aktiv aus; die Supernova-Integration hat
   begonnen.
+
+## 2026-11-08 – Paralleler CFL-Vergleichslauf mit CFL=0.05
+
+- **Versuchsdesign:** Der bestehende Lauf auf GPU 1 verwendet `CFL=0.1`.
+  Parallel wurde auf GPU 2 ein ansonsten identischer Lauf mit `CFL=0.05`
+  gestartet. Damit wird ausschließlich der Einfluss der kleineren internen
+  CFL-Zeitschritte untersucht; `duration=0.1` bleibt bei beiden Läufen gleich.
+- **Gemeinsame Konfiguration:** Beide Läufe verwenden das gültige PP-WENO-
+  Medium, `FINITE_DIFFERENCE/WENO`, PP-Flux-Blending,
+  `REDISTRIBUTE`, `vacuum_rest=True`, implizites Schure-CIE-Cooling,
+  `E_SN=10^51 erg`, Explosionsradius `0.03`, `120` Snapshots und
+  `--save-invalid`.
+- **GPU 2-Ausgabe:**
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_cfl005_medium_gpu2_120snapshots.npz`
+  mit gleichnamigem Log.
+- **Kontrolle beim Start:** GPU 1 rechnete den CFL-0.1-Lauf weiter; GPU 2
+  wurde für den CFL-0.05-Lauf bestätigt. Beide Logs zeigten beim Start keine
+  Fehlermeldung.
