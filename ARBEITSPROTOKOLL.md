@@ -1708,3 +1708,191 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   `parameterbereiche_supernova_trainingsdaten.tex` und
   `make_parameter_pdf.py`. Die PDF ist eine gültige vierseitige Datei; das
   Erzeugungsskript wurde per Python-Kompilierung geprüft.
+
+## 2026-11-09 – Sternwind-Relevanz und serielles Trainingsdatensatz-Skript
+
+- **Sternwind-Recherche:** Fichtner et al. (2024), *Connecting stellar and
+  galactic scales: Energetic feedback from stellar wind bubbles to supernova
+  remnants*, [arXiv:2402.11008](https://arxiv.org/abs/2402.11008), berichten
+  vor der Supernova von Wind-/Ionisationsblasen mit Größen von mehreren bis
+  einigen zehn Parsec. Die Vor-Supernova-Rückkopplung senkt die lokale Dichte
+  und kann dadurch radiative Verluste des späteren Supernova-Überrests
+  verzögern; die Supernova dominiert trotzdem meist das Gesamtenergiebudget.
+  Sternwind ist für unser Problem daher nicht generell irrelevant, sondern
+  sollte als eigener Kontrollvergleich mit und ohne Vor-Supernova-Wind
+  behandelt werden. Die aktuelle zweiphasige Simulation enthält noch keinen
+  Sternwind.
+- **Modellierungsentscheidung:** Der bisherige Lauf ohne Sternwind bleibt der
+  Basiskontrollfall. Ein Windvergleich benötigt noch festgelegte
+  Progenitorparameter (Winddauer, Massenverlust, Windgeschwindigkeit und
+  Injektionsradius) sowie eine zeitliche Zuordnung zur physikalischen
+  Referenzskalierung. Diese Parameter wurden noch nicht als wissenschaftliche
+  Standardwerte festgelegt.
+- **Neue Datei:**
+  `Praktikum_Datenzubereitung/run_training_dataset.py` führt mehrere
+  Experimente seriell aus. Pro Experiment wird zuerst `anfangsmedium.py` und
+  anschließend `supernovae_turbolenz.py` aufgerufen. Das Skript streamt die
+  Ausgaben in ein Log, schreibt ein JSON-Manifest, prüft die Medium-Metadaten
+  und startet die Supernova standardmäßig nicht, wenn das Medium als ungültig
+  markiert ist.
+- **Konfigurationsvorlage:**
+  `Praktikum_Datenzubereitung/training_dataset_config.example.json` enthält
+  einen reproduzierbaren Beispielaufbau mit mehreren Experimenten. Der
+  Probelauf mit `--dry-run` war erfolgreich und startete keine Simulation.
+  GPU-Auswahl erfolgt weiterhin ausschließlich über `CUDA_VISIBLE_DEVICES`;
+  das Skript startet keine parallelen Läufe.
+
+## 2026-11-09 – Fehleranalyse des CFL=0.5-PP-WENO-Supernovalaufs
+
+- **Untersuchter Lauf:**
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_cfl050_medium_gpu2_120snapshots.npz`.
+  Verwendet wurden PP-WENO/PP-Flux-Blending, `REDISTRIBUTE`,
+  `vacuum_rest=True`, implizites Schure-2009-CIE-Cooling, `CFL=0.5`,
+  `E_SN=10^51 erg`, `explosion_radius=0.03` und 120 Snapshots.
+- **Tatsächlicher Abbruch:** Der Fortschrittsbalken erreichte nur etwa 5.9 %.
+  Der letzte tatsächlich beschriebene Snapshot liegt bei lokaler Zeit
+  `t≈0.005844`; danach sind die Snapshot-Puffer überwiegend mit Nullen
+  vorbelegt und der letzte Eintrag ist `NaN`. Die Ausgabe `100 %` ist hier
+  kein erfolgreicher Abschluss: Der astronomix-Fortschrittsbalken setzt bei
+  nicht-endlicher Zeit den Anzeigewert künstlich auf 100 %.
+- **Numerisches Ergebnis:** `valid=false`, `finite_states=false` und
+  `finite_time_points=false`. Die Datei wurde nur wegen `--save-invalid`
+  gespeichert und darf nicht als Trainingsdatensatz verwendet werden.
+- **Vergleich:** Der gleiche PP-WENO-Solver mit Redistribution war bei
+  `CFL=0.1` und `CFL=0.05` gültig. Der reine PP-WENO-Lauf ohne Redistribution
+  scheiterte ebenfalls, aber später bei ungefähr `t≈0.0254`. Damit ist
+  `CFL=0.5` ein klarer Verstärker der Instabilität, aber nicht die alleinige
+  Ursache des grundsätzlichen PP-WENO-Problems.
+- **Eingangsmedium:** Das verwendete PP-WENO-Medium ist endlich, enthält aber
+  sehr druckarme Zellen: `rho_min≈7.67e-2`, `p_min≈2.40e-5` und eine lokale
+  Machzahl bis ungefähr `79`. Zwei Zellen liegen bereits bei `M>10`. Der
+  Standard-Positivitätsschutz arbeitet nur mit `minimum_density=1e-14` und
+  `minimum_pressure=1e-14`; er verhindert damit negative Werte, begrenzt aber
+  keine physikalisch extrem kleinen positiven Drücke oder hohen Machzahlen.
+- **Wahrscheinliche Ursache:** Die starke, nur wenige Gitterzellen große
+  Supernova-Druckquelle trifft auf diese druckarmen Hoch-Mach-Zellen. Bei
+  `CFL=0.5` ist der explizite SSPRK4/WENO-Schritt zu groß, sodass in mindestens
+  einer 3D-Zelle die interne Energie beziehungsweise der Druck nicht mehr
+  endlich wird. `REDISTRIBUTE` und `vacuum_rest` greifen erst bei den sehr
+  niedrigen Dichte-/Positivitätsschwellen und können diesen Hoch-Mach-/Druck-
+  overshoot nicht zuverlässig verhindern.
+- **Cooling-Bewertung:** Das implizite Schure-Cooling ist als alleinige Ursache
+  nicht belegt, weil die identische Phase-2-Cooling-Konfiguration in den
+  `CFL=0.1`- und `CFL=0.05`-Redistribution-Läufen gültig war. Es beeinflusst
+  jedoch die thermische Entwicklung und kann die druckarmen Bereiche
+  verschärfen. Ein exakter erster NaN-Operator wurde in diesem Lauf nicht
+  protokolliert, da `--runtime-debugging` nicht aktiviert war.
+- **Nächster diagnostischer Schritt:** Ein einzelner kurzer Wiederholungslauf
+  mit `--runtime-debugging` und derselben Konfiguration kann den ersten
+  fehlerhaften Operator beziehungsweise die erste NaN-/Druckverletzung genauer
+  lokalisieren. Dafür ist eine ausdrückliche GPU-Freigabe erforderlich.
+
+## 2026-11-09 – Kritische Nachprüfung: Schutzlücken statt gesicherter Hoch-Mach-Ursache
+
+- **Korrektur der vorigen Interpretation:** Die Hoch-Mach-Zellen im Medium
+  sind nachgewiesen, ihre kausale Verbindung mit dem CFL-0.5-Abbruch jedoch
+  nicht. Weder der erste fehlerhafte 3D-Ort noch der erste fehlerhafte
+  Rechenoperator wurden gespeichert. Die Behauptung, die Supernova habe
+  gerade diese Zellen erreicht und dadurch den Abbruch ausgelöst, ist nicht
+  belegt. Hohe Machzahl allein ist kein Instabilitätsbeweis. CFL=0.5 ist in
+  diesem Versuch gescheitert; eine allgemeine Stabilitätsgrenze folgt daraus
+  nicht. Die letzte echte Ausgabe liegt bei lokal t=0.005844, der Logfortschritt
+  vor NaN bei etwa 5.9 %; der exakte Ausfallzeitpunkt ist nicht gespeichert.
+- **CPU-Funktionstests:** Neu angelegt und erfolgreich ausgeführt:
+  `Praktikum_Datenzubereitung/diagnose_ppweno_schutz.py`. Keine Simulation oder
+  GPU-Nutzung; JAX meldete ausschließlich CpuDevice(0). Tests beziehen sich
+  auf die aktuell installierten astronomix-Quellen im pde-Environment; ein
+  vollständiger historischer Quellcode-Hash des ursprünglichen Laufs fehlt.
+- **Mehrdimensionale Limiter-Lücke:** `_hydro_step_rhs` begrenzt die Flüsse
+  jeder Achse ausgehend vom gleichen Zustand getrennt und addiert danach die
+  drei Inkremente. Ein synthetischer Test mit dem echten Limiter ergibt aus
+  rho=1 für jedes einzelne Achsenupdate rho=0.4, insgesamt aber rho=-0.8.
+  Verwendet wurde dt/dx=0.05 und ein synthetischer Dichtefluss mit Steigung 12.
+  Dies beweist eine fehlende allgemeine Garantie für das zusammengesetzte
+  Update, nicht dass genau diese Flüsse im Supernova-Lauf vorkamen. Die
+  zugrundeliegende Literatur verlangt eine geeignete positive Zerlegung:
+  Hu, Adams & Shu, https://arxiv.org/abs/1203.1540 (Methodenteil).
+- **Runge-Kutta-Kopplung:** `_integrators/_explicit_rk.py:ssprk4` ruft vor
+  vier RHS-Auswertungen `pre_stage` auf, vor der fünften (`rhs(u4, ...)`)
+  nicht. Der Hook-Test bestätigt diese Aufrufreihenfolge. Ein unzulässiges
+  u4 kann daher vor der abschließenden Korrektur schon in WENO und Cooling
+  gelangen. Zusätzlich begrenzt der Limiter U+deltaU, während RK teilweise
+  gewichtete Zustände plus deltaU bildet. In der letzten Kombination gibt
+  es sogar einen negativen Startzustandskoeffizienten. Bei nichtlinearem
+  Flux-Blending/Cooling darf die SSP-Garantie deshalb nicht ungeprüft aus
+  der Bezeichnung RK4_SSP übernommen werden.
+- **Rundung des Druckbodens:** Gespeicherte Felder sind float32. Beim Aufbau
+  E=E_kin+p/(gamma-1) kann der Boden p=1e-14 gegenüber E_kin verloren gehen.
+  Beispiel: float32(1000+1.5e-14)-float32(1000)=0. Eine nachgeschaltete
+  Subtraktion zur Druckrekonstruktion kann Null oder kleine negative Werte
+  liefern. Dies ist ein nachgewiesener arithmetischer Mechanismus, nicht
+  die eindeutige Rekonstruktion des konkreten NaN-Auslösers.
+- **Validierung bislang unzureichend:** Aus den tatsächlich beschriebenen
+  zentralen Schnitten wurden im CFL-0.1-Lauf 7 Zell-Snapshot-Einträge mit
+  p<=0 gefunden (globales Schnittminimum -1.820885e-6), im CFL-0.05-Lauf 47
+  (Minimum -3.3708284e-6). Beide Dateien melden dennoch valid=true, weil der
+  Export nur Endlichkeit und Zeitmonotonie prüft. Vollständiges Durchlaufen
+  ist damit nachgewiesen, strikte Positivität und physikalische Gültigkeit
+  nicht. Die Zahlen gelten nur für gespeicherte Schnitte, nicht alle 3D-Zellen.
+- **Cooling bleibt prüfbedürftig:** Der implizite Pfad führt maximal 50
+  ungedämpfte Fixpunktiterationen aus, ohne Konvergenzfehler zu melden.
+  Im FD-Pfad wird die Cooling-Energieänderung zu den bereits begrenzten
+  hydrodynamischen Inkrementen addiert; der Flux-Limiter prüft diese Summe
+  nicht. Der Temperaturboden verwirft Cooling-Updates unterhalb des Bodens
+  und behält die alte Temperatur; er hebt bereits kältere Zellen nicht an.
+  Eine stabile, positivitätserhaltende Gesamtkopplung ist dadurch nicht
+  garantiert. Kleinere CFL-Erfolge schließen Cooling als Mitursache nicht aus.
+- **Folgerung und nächste Schritte:** Schutz vor jeder Flussauswertung,
+  gemeinsame Positivitätsprüfung von 3D-Flüssen und Quellen sowie eine
+  rundungsrobuste Druckrekonstruktion untersuchen. Für kausalen Nachweis
+  werden 3D-Diagnosen vor/nach jedem Teilschritt benötigt (erste Verletzung,
+  Ort, rho, p, E, kinetische Energie, dt und Cooling-Konvergenz). NaN-Ersetzung
+  durch Nullen würde Fehler verdecken. Kein Solver-Fix und kein neuer
+  Produktionslauf in dieser Nachprüfung vorgenommen.
+
+## 2026-11-09 – Tutor empfiehlt supersonische Trainingsläufe
+
+- **Nutzerhinweis:** Der Tutor meint, dass nun supersonische Läufe gestartet
+  werden können. Als nächster wissenschaftlicher Schritt soll daher eine
+  supersonische Turbulenzkonfiguration für die Datenerzeugung untersucht
+  werden.
+- **Bisherige Ergebnisse, die dabei zu beachten sind:** Es gab bereits
+  Amplitude-9-Läufe, deren charakteristisches Verhältnis
+  `<|v|>/<c_s>` am Ende bei ungefähr `1.23` lag (Cooling-Faktor 15,
+  `CFL=0.2`). Diese Größe ist nicht identisch mit der räumlichen Verteilung
+  lokaler Machzahlen. Ein anderer Amplitude-9-Lauf ohne hinreichendes Cooling
+  hatte am Ende keine lokal supersonischen Zellen. Daher muss vor der Auswahl
+  eines Datensatzes klar sein, ob „supersonisch“ das globale Verhältnis, die
+  mittlere lokale Machzahl oder einen Anteil der Zellen mit `M>1` bedeutet.
+- **Numerische Vorbehalte:** Die vorherige Fehleranalyse hat offene Fragen
+  zur multidimensionalen PP-WENO-Begrenzung, zu den SSPRK-Stufen, zur
+  float32-Druckrekonstruktion und zur Kopplung des impliziten Cooling-Terms
+  aufgezeigt. Außerdem meldeten CFL-0.1/0.05-Ausgaben `valid=true`, obwohl
+  die gespeicherten Schnitte einzelne nichtpositive Drücke enthielten. Ein
+  supersonischer Zustand darf deshalb nicht allein anhand endlicher Werte
+  oder des Fortschrittsbalkens als gültig eingestuft werden.
+- **Planungsstatus:** Noch keine neue Machzahl, Forcing-Amplitude, Cooling-
+  Einstellung oder CFL-Zahl festgelegt; keine Simulation gestartet. Für den
+  nächsten Versuch sind Zieldefinition für die Machzahl, Auswahl des bereits
+  vorhandenen validierten Mediums und Positivitätskriterien vorab festzulegen.
+
+## 2026-11-09 – Validierung im seriellen Trainingsdaten-Runner korrigiert
+
+- **Anlass:** Der Runner las das Metadatenfeld `metadata`, während beide
+  Simulationsskripte `metadata_json` in ihren NPZ-Dateien speichern. Außerdem
+  wurde Phase 2 allein anhand des Prozess-Exitcodes als abgeschlossen markiert.
+- **Änderung:** `run_training_dataset.py` liest jetzt `metadata_json` (mit
+  Rückwärtskompatibilität für `metadata`) und verlangt für neu erzeugte Medien
+  explizit `valid=true`. Zusätzlich prüft es im Medium `primitive_state` auf
+  erwartete Form, Endlichkeit sowie strikt positive Dichte und Druck.
+- **Phase-2-Prüfung:** Nach Exit-Code 0 validiert der Runner die
+  Supernova-NPZ-Metadaten, Felder, Endlichkeit, Zeitmonotonie sowie strikt
+  positive Dichte und Druck in den gespeicherten zentralen Schnitten. Nur dann
+  wird der Manifeststatus `complete`; andernfalls `supernova_invalid`. Die
+  Prüfung der Supernova-Schnitte ersetzt keine Prüfung des gesamten
+  3D-Zustands; die NPZ-Datei enthält hier nur zentrale 2D-Schnitte.
+- **Verifikation:** Syntaxprüfung erfolgreich. Isolierte NPZ-Fixtures für
+  gültiges Medium/Supernova-Ergebnis, nichtpositiven Mediumdruck,
+  nichtpositiven Supernovadruck und `valid=false` bestanden. Ein Dry-Run mit
+  temporärem Ausgabeordner gab Phase 1 und Phase 2 seriell aus. Es wurden keine
+  Simulationen gestartet.
