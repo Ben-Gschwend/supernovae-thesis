@@ -1599,3 +1599,23 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Kontrolle beim Start:** GPU 1 rechnete den CFL-0.1-Lauf weiter; GPU 2
   wurde für den CFL-0.05-Lauf bestätigt. Beide Logs zeigten beim Start keine
   Fehlermeldung.
+
+## 2026-11-09 – Beide CFL-Vergleichsläufe numerisch gültig
+
+- **CFL=0.1:** Der Lauf auf GPU 1 wurde vollständig beendet und in
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_medium_gpu1_120snapshots.npz`
+  gespeichert. Die Metadaten melden `valid=true`; alle Zustände und Zeitpunkte
+  sind endlich und die Zeitpunkte streng monoton.
+- **CFL=0.05:** Der parallele Lauf auf GPU 2 wurde ebenfalls vollständig
+  beendet und in
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_cfl005_medium_gpu2_120snapshots.npz`
+  gespeichert. Auch hier melden die Metadaten `valid=true`, endliche Zustände
+  und streng monotone Zeitpunkte.
+- **Interpretation:** Die Halbierung der CFL-Zahl war für die numerische
+  Gültigkeit in dieser Konfiguration nicht erforderlich; beide Läufe waren
+  erfolgreich. Unterschiede zwischen den Ergebnissen müssen nun über Felder,
+  Erhaltungsgrößen und Laufzeiten untersucht werden, nicht nur über den
+  Erfolgsstatus.
+- **GPU-Status:** Die beiden Simulationsprozesse sind beendet. GPU 2 ist frei;
+  auf GPU 1 laufen beim Check noch andere Prozesse, die nicht zu diesen beiden
+  Läufen gehören.
