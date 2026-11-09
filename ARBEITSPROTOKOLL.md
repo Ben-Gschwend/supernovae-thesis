@@ -1619,3 +1619,54 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **GPU-Status:** Die beiden Simulationsprozesse sind beendet. GPU 2 ist frei;
   auf GPU 1 laufen beim Check noch andere Prozesse, die nicht zu diesen beiden
   Läufen gehören.
+
+## 2026-11-09 – Tutor-Rückmeldung: CFL=0.5, PP-Flux-Blending und Literaturparameter
+
+- **Neue Prüfaufträge:** Für die aktuelle numerische Konfiguration soll ein
+  weiterer Supernovalauf mit `CFL=0.5` auf Gültigkeit geprüft werden. Außerdem
+  soll der Einfluss von PP-Flux-Blending ohne zusätzliche Redistribution und
+  ohne `vacuum_rest` nachvollziehbar ausgewertet werden. Ein solcher reiner
+  PP-WENO-Phase-2-Lauf wurde bereits durchgeführt und endete am letzten
+  Snapshot mit nicht-endlichen Werten; die Ausgabe ist als `valid=false`
+  diagnostisch gespeichert.
+- **Literaturrecherche:** Als erste belastbare Referenzen für die Auswahl von
+  Trainingsbereichen wurden Kim & Ostriker (2015), Zhang & Chevalier (2018)
+  und Gaensler et al. (2011) identifiziert. Kim & Ostriker untersuchen
+  mittlere Wasserstoffdichten von `0.1...100 cm^-3` und verwenden für eine
+  einzelne Supernova typischerweise `10^51 erg`. Zhang & Chevalier verwenden
+  turbulente Machzahlen `M=3, 10, 30` sowie mittlere Dichten von `1, 10, 100
+  cm^-3`; für W44 wird `M >= 10` und für W28 `M <= 3` diskutiert. Für warmes
+  ionisiertes Medium berichten Gaensler et al. eine niedrige Schallmachzahl
+  `M_s <= 2`.
+- **Vorläufige Interpretation:** Für Trainingsdaten sollte zunächst ein
+  explizit gekennzeichneter Bereich aus mehreren ISM-Regimen statt eines
+  einzelnen "realistischen" Punktes abgedeckt werden. Die endgültige Auswahl
+  von Dichte-, Machzahl-, Energie-, Temperatur- und Kühlparametern ist noch
+  mit der Betreuung abzustimmen.
+- **Vorgemerkte Literatur mit Quellen:**
+  - Kim, C.-G. & Ostriker, E. C. (2015), *Momentum Injection by Supernovae
+    in the Interstellar Medium*, ApJ 802, 99,
+    [arXiv:1410.1537](https://arxiv.org/abs/1410.1537). Verwendbar für die
+    Referenzenergie einer einzelnen Supernova von ungefähr `10^51 erg`,
+    mittlere Wasserstoffdichten `n_H=0.1...100 cm^-3` und die Abhängigkeit
+    der Schalenbildung beziehungsweise des Impulseintrags von der Dichte.
+  - Zhang, D. & Chevalier, R. A. (2018), *Numerical simulations of supernova
+    remnants in turbulent molecular clouds*, MNRAS 477, 4521,
+    [arXiv:1807.06603](https://arxiv.org/abs/1807.06603). Verwendbar für
+    turbulente Machzahlen `M=3, 10, 30`, mittlere Dichten `n_H=1, 10,
+    100 cm^-3` sowie den Vergleich von weniger und stärker turbulenten
+    Umgebungen; die Diskussion ordnet W28 ungefähr `M<=3` und W44 ungefähr
+    `M>=10` zu.
+  - Gaensler, B. M. et al. (2011), *Low–Mach-number turbulence in
+    interstellar gas revealed by radio polarization gradients*, Nature 478,
+    214–217, [arXiv:1110.2896](https://arxiv.org/abs/1110.2896). Verwendbar
+    als Beobachtungsreferenz für warmes ionisiertes Gas mit einer niedrigen
+    Schallmachzahl `M_s<=2`.
+  - Schure, K. M. et al. (2009), *A new radiative cooling curve based on an
+    up to date plasma emission code*, A&A 508, 751,
+    [arXiv:0909.5204](https://arxiv.org/abs/0909.5204). Verwendbar als
+    Quelle der tabellierten optisch-dünnen CIE-Kühlkurve; Titel, Autoren und
+    arXiv-/A&A-Verweis wurden anhand der Originalquelle geprüft.
+- **GPU-Status:** Der CFL-0.5-Lauf wurde noch nicht gestartet, da für jeden
+  neuen GPU-Lauf zunächst eine freie und ausdrücklich freigegebene GPU
+  benötigt wird.
