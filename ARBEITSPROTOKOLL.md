@@ -1670,3 +1670,24 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **GPU-Status:** Der CFL-0.5-Lauf wurde noch nicht gestartet, da für jeden
   neuen GPU-Lauf zunächst eine freie und ausdrücklich freigegebene GPU
   benötigt wird.
+
+## 2026-11-09 – CFL=0.5-Supernova gestartet
+
+- **Nutzerfreigabe:** GPU 2 wurde ausdrücklich als frei für den Lauf
+  freigegeben.
+- **Ziel:** Prüfung, ob die bisher erfolgreiche PP-WENO-Konfiguration auch
+  mit der größeren CFL-Zahl `0.5` numerisch gültig bleibt.
+- **Eingabe:**
+  `turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`.
+- **Phase 2:** `FINITE_DIFFERENCE/WENO`, PP-Flux-Blending,
+  `REDISTRIBUTE`, `vacuum_rest=True`, implizites Schure-2009-CIE-Cooling,
+  `duration=0.1`, `120` Snapshots, `E_SN=10^51 erg`,
+  `explosion_radius=0.03`, `smoothing_cells=2.0` und `CFL=0.5`.
+- **Hardware und Session:** Der Lauf wurde ausschließlich mit
+  `CUDA_VISIBLE_DEVICES=2` in der Zellij-Session
+  `supernova-ppweno-redistribute-cfl050-gpu2-20261109` gestartet. Beim
+  Start war der Python-Prozess auf GPU 2 bestätigt; die Integration hatte
+  begonnen, ein Endergebnis liegt noch nicht vor.
+- **Ausgabe:**
+  `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_cfl050_medium_gpu2_120snapshots.npz`
+  sowie die gleichnamige `.log`-Datei.
