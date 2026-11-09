@@ -1,0 +1,142 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage[a4paper,margin=2.0cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Parameterbereiche für Supernova-Trainingsdaten},
+  pdfauthor={Astro-Ai-Lab}
+}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\title{Parameterbereiche für Supernova-Trainingsdaten}
+\author{Astro-Ai-Lab}
+\date{9. November 2026}
+
+\begin{document}
+
+\maketitle
+
+\section*{Zweck}
+
+Dieses Dokument trennt die derzeit verwendete Referenzkonfiguration von den
+vorgeschlagenen Bereichen für einen späteren Trainingsdatensatz. Die Bereiche
+sind noch keine endgültige Nutzerentscheidung. Sie müssen vor der Erzeugung
+größerer Datensätze mit der Betreuung abgestimmt werden.
+
+\section{Aktuelle Referenzkonfiguration}
+
+Die bisher geplotteten und verglichenen Supernova-Läufe basieren auf einem
+gemeinsamen turbulenten Medium. Die beiden erfolgreichen Vergleichsläufe
+unterschieden sich nur durch die CFL-Zahl.
+
+\begin{tabularx}{\textwidth}{p{4.1cm}Y}
+\toprule
+Parameter & Aktueller Wert \\
+\midrule
+Auflösung & $128^3$ Zellen \\
+Physikalische Boxgröße & $100\,\mathrm{pc}$ \\
+Referenz-Wasserstoffdichte & $n_{\mathrm H,0}=1\,\mathrm{cm}^{-3}$ \\
+Referenztemperatur & $T_0=10^4\,\mathrm K$ \\
+Mittlere Molekülmasse & $\mu\approx0{,}61$; ionisiertes Gas \\
+Supernovaenergie & $E_{\mathrm{SN}}=10^{51}\,\mathrm{erg}$ \\
+Explosionsradius & $0{,}03$ Codeeinheiten $\approx3\,\mathrm{pc}$ \\
+Glättung & $2$ Zellen \\
+Forcierungswellenzahl & $k_f=25$ \\
+Forcierungskorrelation & $t_{\mathrm{corr}}=1$ Codezeiteinheit \\
+Forcing-Amplitude & $9$; nicht direkt eine Machzahl \\
+Zufallsseed & $42$ \\
+Cooling & Schure-2009-CIE, Temperaturboden $10^4\,\mathrm K$ \\
+Cooling-Integration & Phase 1 explizit, Phase 2 implizit \\
+Supernova-Solver & PP-WENO mit PP-Flux-Blending, REDISTRIBUTE und $\texttt{vacuum\_rest=True}$ \\
+CFL-Vergleich & $0{,}05$ und $0{,}1$ erfolgreich; $0{,}5$ wird aktuell geprüft \\
+\bottomrule
+\end{tabularx}
+
+\section{Vorläufige Literaturbereiche}
+
+\begin{tabularx}{\textwidth}{p{3.5cm}p{4.0cm}Y}
+\toprule
+Parameter & Literaturanker & Vorläufige Auswahl für Trainingsdaten \\
+\midrule
+Mittlere Dichte $n_{\mathrm H}$ & Kim und Ostriker untersuchen $0{,}1$ bis $100\,\mathrm{cm}^{-3}$; Zhang und Chevalier verwenden $1$, $10$ und $100\,\mathrm{cm}^{-3}$. & $0{,}1$, $1$, $10$, $100\,\mathrm{cm}^{-3}$ \\
+\addlinespace
+Turbulente Machzahl $\mathcal M_s$ & Warmes ionisiertes Medium: $\mathcal M_s\lesssim2$; turbulente Molekülwolken: $\mathcal M=3$, $10$, $30$. & $1$, $2$, $3$, $10$, $30$; Regime getrennt kennzeichnen \\
+\addlinespace
+Supernovaenergie $E_{\mathrm{SN}}$ & Für eine einzelne Supernova ist $10^{51}\,\mathrm{erg}$ der kanonische Referenzwert. & Zunächst $0{,}5$, $1$, $2\times10^{51}\,\mathrm{erg}$ als bewusste Explorationsspanne; dies ist keine direkte vollständige Beobachtungsverteilung. \\
+\addlinespace
+Anfangstemperatur & Aktuelles Modell beschreibt warmes, ionisiertes Gas. & Zunächst $10^4\,\mathrm K$ konstant; kalte Molekülwolken separat behandeln. \\
+\addlinespace
+Cooling und Metallizität & Schure et al. liefern eine optisch dünne CIE-Kühlkurve auf SPEX-Basis. & Zunächst Schure2009-CIE mit solarer Referenzzusammensetzung und $T_{\mathrm{floor}}=10^4\,\mathrm K$. \\
+\bottomrule
+\end{tabularx}
+
+\section{Wichtige Einschränkungen}
+
+\begin{itemize}
+  \item Die Forcing-Amplitude ist kein direkter Machzahl-Parameter. Für jeden
+    Zielwert von $\mathcal M_s$ muss die Amplitude zunächst kalibriert werden,
+    indem die tatsächliche RMS- beziehungsweise lokale Machzahl im Medium bei
+    $t=5$ bestimmt wird.
+  \item Die Werte $\mathcal M_s=3$, $10$ und $30$ stammen aus Modellierungen
+    turbulenter Molekülwolken. Unser aktuelles Schure-Setup ist dagegen auf
+    ionisiertes Gas mit $\mu\approx0{,}61$ und einem Temperaturboden von
+    $10^4\,\mathrm K$ festgelegt. Für kalte Molekülwolken wären eine andere
+    Skalierung, ein anderer Temperaturboden und eine passende Kühlbehandlung
+    notwendig.
+  \item Die räumliche Auflösung muss mit der Explosionsgröße und der
+    Schalenbildungsradius verglichen werden. Kim und Ostriker empfehlen für
+    konvergierte Größen näherungsweise $\Delta x,r_{\mathrm{init}}<r_{\mathrm{sf}}/3$.
+    Bei $128^3$ Zellen in einer $100\,\mathrm{pc}$-Box gilt
+    $\Delta x\approx0{,}78\,\mathrm{pc}$. Bei hohen Dichten kann der aktuelle
+    Explosionsradius von ungefähr $3\,\mathrm{pc}$ daher zu groß sein.
+  \item CFL, Solver, Flux-Blending und Positivitätsschutz sind numerische
+    Parameter. Sie sollten für numerische Vergleichsläufe variiert, aber nicht
+    als physikalische Trainingsparameter interpretiert werden.
+\end{itemize}
+
+\section{Empfohlene erste Staffelung}
+
+Für einen ersten überschaubaren Datensatz wird empfohlen, zunächst das aktuelle
+warme ionisierte Regime zu verwenden:
+
+\[
+n_{\mathrm H}\in\{0{,}1,1,10,100\}\,\mathrm{cm}^{-3},\qquad
+\mathcal M_s\in\{1,2\},\qquad
+E_{\mathrm{SN}}\in\{0{,}5,1,2\}\times10^{51}\,\mathrm{erg}.
+\]
+
+Danach kann ein getrennt gekennzeichneter Molekülwolken-Datensatz mit
+$\mathcal M_s=3$, $10$ und $30$ ergänzt werden, sobald die physikalische
+Skalierung und das Cooling für tiefe Temperaturen erweitert wurden.
+
+\section{Literatur}
+
+\begin{enumerate}
+  \item C.-G. Kim und E. C. Ostriker (2015): \emph{Momentum Injection by
+    Supernovae in the Interstellar Medium}, ApJ 802, 99.
+    \url{https://arxiv.org/abs/1410.1537}
+  \item D. Zhang und R. A. Chevalier (2018): \emph{Numerical simulations of
+    supernova remnants in turbulent molecular clouds}, MNRAS 477, 4521.
+    \url{https://arxiv.org/abs/1807.06603}
+  \item B. M. Gaensler et al. (2011): \emph{Low--Mach-number turbulence in
+    interstellar gas revealed by radio polarization gradients}, Nature 478,
+    214--217. \url{https://arxiv.org/abs/1110.2896}
+  \item K. M. Schure et al. (2009): \emph{A new radiative cooling curve based
+    on an up to date plasma emission code}, A\&A 508, 751.
+    \url{https://arxiv.org/abs/0909.5204}
+\end{enumerate}
+
+\end{document}
