@@ -1691,3 +1691,20 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Ausgabe:**
   `supernovae_turbolenz_128cells_schure2009_ppweno_redistribute_cfl050_medium_gpu2_120snapshots.npz`
   sowie die gleichnamige `.log`-Datei.
+
+## 2026-11-09 – Parameterbereichs-PDF um Literaturbereiche erweitert
+
+- **Anlass:** Die PDF soll neben den aktuell verwendeten Einzelwerten die
+  recherchierten relevanten Bereiche ausdrücklich und getrennt aufführen.
+- **Erweiterung:** Eine zusätzliche Übersicht dokumentiert nun die
+  Literaturanker und vorgeschlagenen Stützstellen für mittlere Dichte,
+  turbulente Machzahl, Einzel- und Mehrfach-Supernovaenergien,
+  Temperatur/ISM-Phase, Cooling-Temperaturbereich und Explosionsradius.
+  Designbereiche wie `0.5...2 x 10^51 erg` sind ausdrücklich als
+  Explorationsvorschlag und nicht als vollständige Beobachtungsverteilung
+  gekennzeichnet.
+- **Ausgaben:** Aktualisiert wurden
+  `parameterbereiche_supernova_trainingsdaten.pdf`,
+  `parameterbereiche_supernova_trainingsdaten.tex` und
+  `make_parameter_pdf.py`. Die PDF ist eine gültige vierseitige Datei; das
+  Erzeugungsskript wurde per Python-Kompilierung geprüft.

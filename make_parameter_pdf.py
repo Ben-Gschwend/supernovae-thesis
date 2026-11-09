@@ -114,6 +114,22 @@ def main() -> None:
             ],
         )
 
+        add_table_page(
+            pdf,
+            "Relevante Bereiche aus der Recherche",
+            "Explizite Übersicht: Literaturbereich, verwendete Stützstellen und Einschränkung",
+            ["Parameter", "Relevanter Bereich / Literaturanker", "Verwendung in unserem Projekt"],
+            [
+                ("Mittlere Dichte", "0,1 bis 100 cm$^{-3}$ bei Kim & Ostriker; 1, 10 und 100 cm$^{-3}$ bei Zhang & Chevalier.", "Stützstellen 0,1; 1; 10; 100 cm$^{-3}$ für den Dichte-Sweep."),
+                ("Machzahl", "Warmes ionisiertes Gas: $M_s\\lesssim2$. Molekülwolken: $M=3$, $10$, $30$.", "Warm: $M=1,2$. Separates molekulares Regime: $M=3,10,30$."),
+                ("Einzel-Supernovaenergie", "Typischer Referenzwert ungefähr $10^{51}$ erg; die Literaturstudien setzen diesen Wert für Einzelereignisse ein.", "Explorative Trainingspunkte: 0,5; 1; 2 $\\times10^{51}$ erg. Als Designbereich kennzeichnen, nicht als vollständige Verteilung."),
+                ("Mehrere Supernovae", "Kim & Ostriker verwenden als Vergleich zehn Ereignisse mit insgesamt $10^{52}$ erg.", "Nicht Teil des aktuellen Einzel-Supernova-Datensatzes; nur als spätere Erweiterung relevant."),
+                ("Temperatur / ISM-Phase", "Aktuelles ionisiertes Regime bei $10^4$ K. Kalte Molekülwolken liegen typischerweise deutlich darunter, etwa im Bereich 10--100 K.", "$10^4$ K zunächst beibehalten. Kalte Phase erst nach Anpassung von $\\mu$, Cooling und Temperaturboden verwenden."),
+                ("Cooling-Temperaturbereich", "Schure-Tabelle ungefähr $10^{3,8}$ bis $10^{8,16}$ K; verwendet wird ein Boden von $10^4$ K.", "Schure2009-CIE in beiden Phasen; Phase 1 explizit, Phase 2 implizit."),
+                ("Explosionsradius", "Keine universelle Literaturspanne; Konvergenzkriterium $\\Delta x,r_{init}<r_{sf}/3$ bei Kim & Ostriker.", "Radius abhängig von $n_H$ und Auflösung wählen; aktueller Radius ca. 3 pc ist bei hohen Dichten zu prüfen."),
+            ],
+        )
+
         add_text_page(
             pdf,
             "Interpretation und offene Punkte",
