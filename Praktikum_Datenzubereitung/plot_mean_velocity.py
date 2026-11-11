@@ -36,16 +36,16 @@ DATA_DIR = Path(__file__).resolve().parent
 
 
 def _next_available_path(output_path: Path) -> Path:
-    """Verhindere das Überschreiben einer vorhandenen Grafik."""
+    """Verhindere das Überschreiben einer vorhandenen Grafik oder CSV."""
 
-    if not output_path.exists():
+    if not output_path.exists() and not output_path.with_suffix(".csv").exists():
         return output_path
     counter = 1
     while True:
         candidate = output_path.with_name(
             f"{output_path.stem}_{counter}{output_path.suffix}"
         )
-        if not candidate.exists():
+        if not candidate.exists() and not candidate.with_suffix(".csv").exists():
             return candidate
         counter += 1
 

@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
 import sys
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +62,27 @@ def _parse_args() -> argparse.Namespace:
         "--allow-invalid-medium",
         action="store_true",
         help="Supernova auch starten, wenn das Medium als ungültig markiert ist.",
+    )
+    parser.add_argument(
+        "--sweep-energy-e51",
+        nargs="+",
+        type=float,
+        metavar="E51",
+        help=(
+            "Erzeuge statt der config-runs einen Sweep über diese Faktoren "
+            "von 10^51 erg, z. B. --sweep-energy-e51 0.5 1 2."
+        ),
+    )
+    parser.add_argument(
+        "--sweep-nh-range",
+        nargs=3,
+        type=float,
+        metavar=("START", "STOP", "STEP"),
+        help=(
+            "Sweep der mittleren Wasserstoffzahlendichte in cm^-3, "
+            "z. B. --sweep-nh-range 0.1 100 5. Der STOP-Wert wird immer "
+            "aufgenommen, auch wenn dafür der letzte Schritt kürzer ist."
+        ),
     )
     return parser.parse_args()
 
@@ -101,6 +124,75 @@ def _merged_options(defaults: dict[str, Any], overrides: dict[str, Any]) -> dict
     result = dict(defaults)
     result.update(overrides)
     return result
+
+
+def _decimal_range(start: float, stop: float, step: float) -> list[float]:
+    """Erzeuge eine inklusive Dezimalreihe ohne kumulative Float-Fehler."""
+
+    if not all(math.isfinite(value) for value in (start, stop, step)):
+        raise ValueError("Sweep-Bereich muss aus endlichen Zahlen bestehen.")
+    first, last, increment = map(lambda value: Decimal(str(value)), (start, stop, step))
+    if increment <= 0 or last < first:
+        raise ValueError("Sweep-Bereich benötigt STOP >= START und STEP > 0.")
+    values: list[Decimal] = []
+    current = first
+    while current <= last:
+        values.append(current)
+        current += increment
+    if values[-1] != last:
+        values.append(last)
+    return [float(value) for value in values]
+
+
+def _number_tag(value: float) -> str:
+    return format(Decimal(str(value)).normalize(), "f").replace("-", "m").replace(".", "p")
+
+
+def _sweep_runs(args: argparse.Namespace, config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ersetze bei angefordertem Sweep die JSON-runs durch das Kreuzprodukt."""
+
+    if args.sweep_energy_e51 is None and args.sweep_nh_range is None:
+        return config["runs"]
+
+    base_medium = dict(config.get("medium_defaults", {}))
+    base_supernova = dict(config.get("supernova_defaults", {}))
+    base_run = config["runs"][0] if config["runs"] else {}
+    base_medium.update(base_run.get("medium", {}))
+    base_supernova.update(base_run.get("supernova", {}))
+
+    energies = args.sweep_energy_e51
+    if energies is None:
+        energy_erg = float(base_supernova.get("physical_explosion_energy_erg", 1.0e51))
+        energies = [energy_erg / 1.0e51]
+    if any(not math.isfinite(value) or value <= 0.0 for value in energies):
+        raise ValueError("Alle Supernovaenergien müssen positiv sein.")
+    if len(set(energies)) != len(energies):
+        raise ValueError("Die Energiewerte im Sweep müssen eindeutig sein.")
+
+    if args.sweep_nh_range is None:
+        densities = [float(base_medium.get("physical_hydrogen_number_density", 1.0))]
+    else:
+        densities = _decimal_range(*args.sweep_nh_range)
+    if any(not math.isfinite(value) or value <= 0.0 for value in densities):
+        raise ValueError("Alle Wasserstoffzahlendichten müssen positiv sein.")
+
+    generated: list[dict[str, Any]] = []
+    for density in densities:
+        for energy in energies:
+            generated.append(
+                {
+                    "id": f"nh{_number_tag(density)}_e{_number_tag(energy)}e51",
+                    "medium": {
+                        **base_medium,
+                        "physical_hydrogen_number_density": density,
+                    },
+                    "supernova": {
+                        **base_supernova,
+                        "physical_explosion_energy_erg": energy * 1.0e51,
+                    },
+                }
+            )
+    return generated
 
 
 def _relative_or_absolute(path: str | Path) -> Path:
@@ -258,7 +350,9 @@ def main() -> int:
         "experiments": [],
     }
 
-    for index, run in enumerate(config["runs"], start=1):
+    runs = _sweep_runs(args, config)
+    print(f"Geplante Experimente: {len(runs)}")
+    for index, run in enumerate(runs, start=1):
         if not isinstance(run, dict):
             raise ValueError(f"runs[{index - 1}] muss ein JSON-Objekt sein.")
         run_id = str(run.get("id", f"run_{index:04d}"))
@@ -269,6 +363,17 @@ def main() -> int:
             )
 
         paths = _experiment_paths(output_dir, run_id, run)
+        if not args.dry_run:
+            existing = [
+                str(paths[key])
+                for key in ("medium", "supernova")
+                if paths[key].exists()
+            ]
+            if existing:
+                raise FileExistsError(
+                    "Abbruch, um vorhandene Simulationsergebnisse nicht zu "
+                    f"überschreiben: {', '.join(existing)}"
+                )
         paths["medium"].parent.mkdir(parents=True, exist_ok=True)
         medium_options = _merged_options(medium_defaults, run.get("medium", {}))
         supernova_options = _merged_options(supernova_defaults, run.get("supernova", {}))

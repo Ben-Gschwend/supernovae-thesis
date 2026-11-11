@@ -1896,3 +1896,271 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   nichtpositiven Supernovadruck und `valid=false` bestanden. Ein Dry-Run mit
   temporärem Ausgabeordner gab Phase 1 und Phase 2 seriell aus. Es wurden keine
   Simulationen gestartet.
+
+## 2026-11-09 – Startparameter für Energie- und Dichtesweeps
+
+- **Ziel:** Beim Start des seriellen Datensatz-Runners Energie- und
+  Wasserstoffdichtewerte als Sweep angeben können.
+- **Eingaben:** Vorgesehen sind Supernovaenergien `0.5, 1, 2 × 10^51 erg`
+  sowie `n_H=0.1...100 cm^-3` mit Schrittweite `5 cm^-3`.
+- **Änderung:** `run_training_dataset.py` akzeptiert nun
+  `--sweep-energy-e51` und `--sweep-nh-range START STOP STEP`. Der Endwert
+  wird aufgenommen, auch wenn dafür der letzte Schritt kürzer ausfällt.
+  Vorhandene Medium- und Supernova-NPZ-Dateien werden vor einem echten Lauf
+  erkannt und nicht überschrieben.
+- **Sweepgröße und Dichtefolge:** Der vorgeschlagene Dichtesweep ist
+  `0.1, 5.1, 10.1, ..., 95.1, 100 cm^-3`; mit drei Energien ergeben sich
+  63 serielle Experimente. Nach aktuellem Runnerdesign wird für jedes
+  Energie-Dichte-Paar ein eigenes Medium gerechnet, auch wenn bei gleicher
+  Dichte dieselben Mediumparameter verwendet werden.
+- **Dokumentation:** Ein Startbeispiel mit `--dry-run` wurde in
+  `Praktikum_Datenzubereitung/README.md` ergänzt.
+- **Machzahl offen:** `anfangsmedium.py` nimmt eine Forcing-Amplitude an,
+  keine direkt einstellbare Ziel-Machzahl. Die Forcing-Amplitude ist nicht
+  ohne Kalibrierung mit einer erreichten Machzahl gleichzusetzen. Für die
+  geplanten Werte `0.5...1.0` muss daher zunächst festgelegt werden, ob der
+  bereits geplottete Kennwert `<|v|>/<c_s>` bei `t=5` angesteuert werden soll
+  oder eine andere Machstatistik. Bis dahin wurde keine Machzahl als
+  Simulationsparameter implementiert.
+- **Prüfungen/Läufe:** Keine GPU-Simulation gestartet. Ein Dry-Run und
+  Syntax-/Funktionstests wurden in diesem Arbeitsschritt noch nicht
+  ausgeführt.
+
+## 2026-11-10 – Machzahl-Kalibrierung vorbereitet
+
+- **Ziel:** Den Zusammenhang zwischen OU-Forcing-Amplitude, mittlerer
+  Wasserstoffdichte und erreichter Machzahl bestimmen, bevor die Zielwerte
+  `0.5...1.0` in den Datensatz-Sweep aufgenommen werden.
+- **Vorhandene Daten CPU-seitig ausgewertet:** Bei `128^3`, Seed `42`,
+  `A=9`, `n_H=1 cm^-3`, `CFL=0.1` und Schure-2009-CIE-Cooling ergab der
+  finale Zustand im vorhandenen PP-WENO-Medium ohne allgemeinen
+  REDISTRIBUTE-Schutz den bestehenden Kennwert
+  `<|v|>/<c_s>=1.0535`. Der Mittelwert der lokalen Machzahlen war `1.0773`,
+  und `51.8 %` der Zellen hatten lokal `M>1`.
+- **Numerik beeinflusst den Messwert:** Zwei weitere vorhandene Dateien mit
+  gleicher Auflösung, Seed, Amplitude, Referenzdichte, CFL und Cooling, aber
+  anderer Schutz-/Solverkonfiguration, ergaben für denselben Kennwert `0.7936`
+  beziehungsweise `0.7736`. Die finalen Dichte-, Druck- und
+  Geschwindigkeitsfelder hatten in diesen Dateien jeweils `2,097,152` von
+  `2,097,152` Zellen endlich und positiv. Die älteren Dateien besitzen kein
+  explizites `valid`-Metadatenfeld; die Endzustandsprüfung allein beweist
+  keine Positivität während aller Zwischenstufen. Kalibrierungen müssen daher
+  Solver und Schutzkonfiguration festhalten und konstant lassen.
+- **Vorbereitete Auswertung:** Neu angelegt wurde
+  `Praktikum_Datenzubereitung/calibrate_mach_forcing.py`. Es startet bei
+  manueller Ausführung ausschließlich Mediumläufe mit den Defaults aus der
+  Trainingsdaten-Konfiguration, misst den finalen Kennwert
+  `<|v|>/<c_s>` und protokolliert zusätzlich mittlere lokale Machzahl sowie
+  den Zellanteil mit `M>1`. Ergebnisse und Validitätsstatus werden in CSV und
+  JSON-Manifest gespeichert. Ein Dry-Run ist verfügbar; vorhandene Dateien
+  werden nicht überschrieben.
+- **Pilotpunkte:** Als grober Start sind Amplituden `3, 6, 9` und Dichten
+  `0.1, 1, 100 cm^-3` vorgesehen (neun serielle Mediumläufe). Das ist eine
+  erste Prüfung der Dichteabhängigkeit, keine vollständige Kalibrierung aller
+  21 späteren Dichtewerte. Diese Pilotwerte sind Versuchsplanung, keine
+  bestätigte Mach-Amplituden-Zuordnung.
+- **Änderte Dateien:** `calibrate_mach_forcing.py`,
+  `Praktikum_Datenzubereitung/README.md` und dieses Arbeitsprotokoll. Die
+  uncommitteten Änderungen am seriellen Datensatz-Runner aus dem Eintrag vom
+  9. November blieben erhalten.
+- **Läufe/Prüfungen:** Vorhandene NPZ-Endzustände wurden mit Python/NumPy
+  CPU-seitig gelesen; es wurde keine Simulation gestartet. Für die neue
+  Kalibrierungsdatei wurden in diesem Schritt keine Tests oder Dry-Runs
+  ausgeführt. Keine GPU wurde vom Nutzer für einen neuen Lauf benannt.
+- **Nächster Schritt:** Nutzer wählt eine freie GPU und startet den
+  dokumentierten Pilotlauf manuell. Danach werden die erreichten Kennwerte
+  geprüft und entschieden, welche Amplituden für die Dichten zwischen den
+  Pilotpunkten nachgemessen werden müssen.
+
+## 2026-11-10 – GPU-Warteschlange mit autocvd ergänzt
+
+- **Nutzeranforderung:** Der Machzahl-Pilot soll beim Start selbst auf eine
+  verfügbare GPU warten und dann automatisch anlaufen, da die geeigneten GPUs
+  aktuell belegt sind.
+- **Implementierung:** `calibrate_mach_forcing.py` ruft vor dem ersten
+  Medium-Unterprozess `autocvd(num_gpus=1)` auf. Die Auswahl wird im
+  Elternprozess gesetzt und von allen seriellen Mediumläufen übernommen.
+  Standardmäßig wird unbegrenzt gewartet und alle 30 Sekunden neu geprüft;
+  optional sind Wartezeit und Prüfintervall über CLI-Optionen einstellbar.
+  `--dry-run` wartet nicht und ruft `autocvd` nicht auf.
+- **Verfügbarkeitsprüfung:** Die installierte `autocvd==0.2.1`-Implementierung
+  nutzt `nvidia-smi` und betrachtet eine GPU als frei, wenn kein Compute-
+  Prozess gelistet ist. Das ist keine Scheduler-Reservierung; konkurrierende
+  auto-Auswahlen können theoretisch dieselbe GPU wählen.
+- **Environment:** `autocvd==0.2.1` ist im Environment
+  `/export/home/bgschwen/micromamba/envs/pde` installiert und wurde in
+  `Praktikum_Datenzubereitung/requirements_pde_gpu.txt` ergänzt.
+- **Geänderte Dateien:** `calibrate_mach_forcing.py`,
+  `Praktikum_Datenzubereitung/README.md`,
+  `Praktikum_Datenzubereitung/requirements_pde_gpu.txt` und dieses Protokoll.
+- **Läufe/Prüfung:** Es wurde keine GPU-Auswahl aufgerufen, keine GPU-Simulation
+  gestartet und kein Funktionstest ausgeführt. Die Paketverfügbarkeit wurde
+  nur über Python-Metadaten geprüft; damit wurde weder JAX importiert noch eine
+  GPU belegt.
+- **Nächster Schritt:** Nutzer kann den dokumentierten Befehl starten. Wenn
+  keine GPU frei ist, zeigt `autocvd` den Wartezustand und beginnt nach
+  erfolgreicher Auswahl mit den neun seriellen Mediumläufen.
+
+## 2026-11-11 – Mach-Kalibrierung ausgewertet und Snapshot-Wiederholung vorbereitet
+
+- **Abschluss des ersten Kalibrierungslaufs:** Der am 10. November gestartete
+  Lauf wurde auf GPU 5 mit Exit-Code 0 abgeschlossen. Alle neun Kombinationen
+  aus `n_H = 0.1, 1, 100 cm^-3` und Forcing-Amplituden `3, 6, 9` erreichten
+  `t=5`; je Lauf waren `2,097,152/2,097,152` Zellen numerisch gültig.
+- **Charakteristischer Mach-Kennwert** `<|v|>/<c_s>` (Spalten: Amplitude
+  `3, 6, 9`): `n_H=0.1`: `0.589, 0.858, 1.062`; `n_H=1`:
+  `0.574, 0.855, 1.041`; `n_H=100`: `0.295, 0.271, 0.252`. Bei
+  `n_H=100` stieg die mittlere Geschwindigkeit mit der Amplitude, aber die
+  mittlere Schallgeschwindigkeit stieg stärker. Diese Ergebnisse sind
+  Endzustandsmessungen, keine zeitlichen Velocity-Verläufe.
+- **Ausgangslage für Plots:** Die neun Kalibrierungs-NPZ-Dateien enthalten
+  `primitive_state` und Zeitpunkte, aber keine Snapshot-Felder (`states`);
+  `snapshots_saved=false`. Damit ist `plot_mean_velocity.py` auf ihnen nicht
+  für den Zeitverlauf verwendbar.
+- **Änderung für Wiederholung:** `calibrate_mach_forcing.py` setzt nun
+  `save_snapshots=true` und erzeugt nach jedem gültigen Lauf mit
+  `plot_mean_velocity.py` einen PNG-Zeitplot und eine CSV-Zeitreihe. Läufe
+  ohne gespeicherte Zustände werden nicht als vollständige Plot-Kalibrierung
+  akzeptiert. Die gemeinsame Machzahl-CSV und das JSON-Manifest bleiben
+  erhalten.
+- **Geplanter neuer Satz:** Forcing-Amplituden `3, 9, 15`, mittlere
+  Wasserstoffdichten `0.1, 1, 10, 100 cm^-3`, zwölf serielle Mediumläufe.
+  Ausgabeziel: `Praktikum_Datenzubereitung/mach_calibration_snapshots`; so
+  bleiben die ersten Ergebnisse unberührt. Bei `128^3` und 32 Snapshots
+  benötigen die NPZ-Zustände voraussichtlich ungefähr 1.2 GB pro Lauf, also
+  zusammen etwa 14 GB.
+- **Geänderte Dateien:** `Praktikum_Datenzubereitung/calibrate_mach_forcing.py`,
+  `Praktikum_Datenzubereitung/README.md` und dieses Protokoll.
+- **Laufstatus/Prüfungen:** Für die zwölf neuen Läufe wurde keine GPU
+  ausgewählt und keine Simulation gestartet. Es wurden keine Tests oder
+  Dry-Runs ausgeführt. Vor dem manuellen Start muss der Nutzer die freie GPU
+  bestätigen; die Snapshots können insgesamt etwa 14 GB Speicher belegen.
+
+## 2026-11-11 – Plot-Ausgabe der Snapshot-Wiederholung angepasst
+
+- **Nutzerpräzisierung:** Während der zwölf Läufe sollen Daten gesichert
+  werden, damit Velocity-Zeitplots oder Medium-GIFs später gezielt und
+  manuell erstellt werden können. Es sollen keine PNG-Plots automatisch beim
+  Simulationslauf entstehen.
+- **Änderung:** `calibrate_mach_forcing.py` speichert weiterhin die 32
+  Zustands-Snapshots im NPZ und schreibt pro gültigem Lauf eine CSV mit `time`,
+  `mean_speed`, `mean_sound_speed` und `speed_to_sound_ratio`. Die automatische
+  PNG-Erstellung wurde entfernt. `plot_anfangsmedium.py` liest die NPZ-Snapshots;
+  `plot_mean_velocity.py` kann später manuell den Velocity-Zeitplot erzeugen.
+  Der manuelle Plotlauf wählt einen nummerierten Dateinamen, falls die
+  zugehörige CSV bereits existiert, und überschreibt die gespeicherte CSV nicht.
+- **Dokumentation:** README entsprechend präzisiert; das vorherige Protokoll
+  bleibt chronologisch erhalten und dieser Eintrag hält die Korrektur fest.
+- **Geänderte Dateien:** `calibrate_mach_forcing.py`,
+  `plot_mean_velocity.py`, `Praktikum_Datenzubereitung/README.md` und dieses
+  Protokoll.
+- **Prüfungen/Läufe:** Keine GPU-Simulation, kein Dry-Run und keine Tests
+  ausgeführt. Die Änderung wurde anhand der beiden Plot-Skripte und des
+  Kalibrierungsrunners nachvollzogen.
+
+## 2026-11-11 – NPZ als einzige Plot-Datenquelle bestätigt
+
+- **Klärung:** `plot_anfangsmedium.py` benötigt die räumlichen Snapshot-Felder
+  aus der NPZ-Datei. `plot_mean_velocity.py` liest dieselben Snapshots und
+  berechnet daraus den Zeitverlauf; beim manuellen Plotaufruf kann es die
+  Velocity-Zeitreihen-CSV erzeugen. Einzelne Velocity-CSV-Dateien während der
+  Kalibrierung sind daher für die späteren Plots nicht erforderlich.
+- **Änderung:** Die automatische Erzeugung von per-run Velocity-CSV-Dateien
+  wurde aus `calibrate_mach_forcing.py` entfernt. Die NPZ-Snapshots bleiben
+  erhalten; die gemeinsame `mach_calibration.csv` mit den finalen
+  Machzahlmessungen wird weiter geschrieben.
+- **Geänderte Dateien:** `calibrate_mach_forcing.py`,
+  `Praktikum_Datenzubereitung/README.md` und dieses Protokoll.
+- **Prüfungen/Läufe:** Kein GPU-Lauf, kein Dry-Run und keine Tests ausgeführt.
+
+## 2026-11-11 – Ursache des Abbruchs auf compgpu14 geklärt
+
+- **Nutzerbestätigung:** `compgpu14` ist bis zum 16.11. für eine
+  andere Gruppe reserviert. Der Nutzer wurde vom System entfernt; dadurch
+  erhielt der Prozess das Interrupt-Signal und endete mit Exit-Code 130.
+- **Korrigierte Einordnung:** Der Abbruch war eine Folge der GPU-/Host-
+  Reservierung, kein numerischer oder CUDA-Fehler der Simulation und kein
+  absichtlicher manueller Abbruch. Die frühere Ursache war anhand des Logs
+  zunächst nicht feststellbar.
+- **Nächster Schritt:** Den Kalibrierungslauf nach Ende der Reservierung auf
+  einem freigegebenen Host oder einer anderen autorisierten GPU mit einem
+  neuen Ausgabeordner erneut starten. Keine Wiederholung wurde gestartet.
+
+## 2026-11-11 – Neustart auf compgpu13 durch vorhandene Ausgaben blockiert
+
+- **Versuch:** Der Nutzer startete den 12er-Runner erneut auf `compgpu13` mit
+  demselben Zielordner `mach_calibration_snapshots`.
+- **Ergebnis:** Ein Startversuch traf auf eine bereits vorhandene
+  `medium_nh0p1_amp3.npz`; der folgende Versuch wurde wegen des bereits
+  vorhandenen Kalibrierungsmanifests abgewiesen. Der Schutz vor Überschreiben
+  hat den Neustart verhindert. Bei der anschließenden Prüfung lagen im Ordner
+  das Manifest und das Teil-Log, aber keine NPZ-Datei; das Manifest enthält
+  noch den alten Status `running` von compgpu14.
+- **Loghinweis:** Die erneute Verwendung desselben `tee`-Zielnamens hat die
+  zentrale Datei `mach_calibration_snapshots.log` durch die kurze
+  Fehlermeldung ersetzt. Das ausführlichere Teil-Log
+  `medium_nh0p1_amp3.log` im Ausgabeverzeichnis ist erhalten.
+- **Nächster Schritt:** Für einen erneuten Versuch einen neuen Ausgabeordner
+  und einen eigenen zentralen Lognamen verwenden. Keine Dateien wurden von
+  Codex gelöscht oder überschrieben; kein neuer Mediumlauf wurde gestartet.
+
+## 2026-11-11 – Snapshot-Kalibrierung auf compgpu13: VRAM-Erschöpfung
+
+- **Befund zum Ausgabeordner:** `mach_calibration_snapshots_compgpu13_retry1`
+  enthielt bereits ein Manifest mit Startzeit `2026-11-11T10:56:29Z` und
+  GPU-Auswahl `[0]`. Deshalb wurde der danach erneut eingegebene Startbefehl
+  korrekt wegen vorhandener Manifest-/CSV-Ausgaben beziehungsweise NPZ-Pfaden
+  abgewiesen.
+- **Laufstatus im Manifest:** Bei der Prüfung waren `nh0p1_amp3` und
+  `nh0p1_amp9` als `simulation_failed`, Exit-Code 1, vermerkt; `nh0p1_amp15`
+  stand noch als `running`. In den Logs zu den drei Kombinationen stehen
+  CUDA-`RESOURCE_EXHAUSTED`-/Out-of-memory-Meldungen. JAX konnte unter anderem
+  eine weitere Allokation von etwa `1.09 GiB` nicht reservieren.
+- **GPU-Kontext:** Das Manifest dokumentiert GPU 0. Bei einer späteren Abfrage
+  belegte ein anderer Compute-Prozess den Großteil des GPU-Speichers. Das
+  stützt Speicherkonkurrenz als wahrscheinlichen Faktor, beweist aber nicht,
+  wann genau der zweite Prozess hinzugekommen ist.
+- **Ergebnis:** Für die ersten Kombinationen wurden keine gültigen
+  Snapshot-NPZ-Dateien erzeugt. Die letzte Manifest-Angabe `running` ist
+  möglicherweise veraltet; der Lauf wurde nicht als vollständig bestätigt.
+- **Nächster Schritt:** Nicht denselben Ausgabeordner wiederverwenden. Vor
+  einem weiteren Lauf muss eine tatsächlich ausreichend freie GPU verfügbar
+  sein; anschließend einen neuen Ausgabeordner und Lognamen wählen. Codex
+  startete keinen weiteren Lauf und löschte keine vorhandenen Diagnose-Logs.
+
+## 2026-11-11 – Kalibrierung auf compgpu13 erneut in Warteschlange gestellt
+
+- **Nutzerauftrag:** Den 12er-Snapshotlauf mit Forcing-Amplituden `3, 9, 15`
+  und `n_H = 0.1, 1, 10, 100 cm^-3` in der Zellij-Session `gpu13` erneut
+  starten und mit `autocvd` auf eine freie GPU warten.
+- **Ausgabeziel:** Neuer Ordner
+  `Praktikum_Datenzubereitung/mach_calibration_snapshots_compgpu13_retry2`
+  und separater Logname `mach_calibration_snapshots_compgpu13_retry2.log`;
+  frühere Diagnoseausgaben bleiben erhalten.
+- **Status bei Einreihung:** Zellij-Pane
+  `mach-calibration-autocvd-retry2` ist aktiv. `autocvd` meldete
+  `0/1 GPU verfügbar`; bis zu diesem Zeitpunkt war noch keine GPU ausgewählt
+  und keine Mediumsimulation gestartet. GPUs sind auf `compgpu13` aktuell
+  belegt. Der Runner wartet mit 30-Sekunden-Abfragen weiter.
+- **GPU-Freigabe:** Nutzer hat den Start ausdrücklich angefordert; ausgewählte
+  physische GPU und Laufzeit sind noch offen, bis `autocvd` eine Karte findet.
+
+## 2026-11-11 – Retry-2-Lauf auf GPU 6 endete vor dem ersten Snapshot
+
+- **Fortschritt:** Das Manifest bestätigt GPU 6. Der erste Mediumlauf
+  `n_H=0.1 cm^-3`, Amplitude `3` wurde in Zellij bis etwa `72.4 %`
+  fortgeschrieben.
+- **Aktueller Zustand:** Bei der Prüfung war kein Projektprozess mehr in der
+  GPU-Prozessliste sichtbar. Der Zellij-Pane stand nach einem erneuten
+  Startversuch wegen des vorhandenen Manifests an der Shell. Im Ausgabeordner
+  liegt kein NPZ-Snapshot; das Manifest hat daher noch veraltet den Status
+  `running`.
+- **Fehlerursache:** Das erhaltene Medium-Log endet bei `72.4 %` ohne
+  Traceback. Die zentrale Retry-2-Logdatei wurde beim erneuten Aufruf mit
+  `tee` durch die `FileExistsError`-Meldung ersetzt. Der Grund, weshalb der
+  ursprüngliche Integrationsprozess stoppte, ist deshalb nicht mehr aus den
+  vorhandenen Logs bestimmbar. Während des Laufs war GPU 6 mit weiteren
+  Prozessen geteilt; ein Zusammenhang ist möglich, aber nicht belegt.
+- **Nächster Schritt:** Ausgabeordner `mach_calibration_snapshots_compgpu13_retry2`
+  nicht erneut verwenden. Vor einem weiteren Lauf neue GPU-Verfügbarkeit
+  sicherstellen und einen frischen Ausgabeordner sowie Lognamen verwenden.
