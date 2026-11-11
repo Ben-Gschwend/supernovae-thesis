@@ -2164,3 +2164,16 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - **Nächster Schritt:** Ausgabeordner `mach_calibration_snapshots_compgpu13_retry2`
   nicht erneut verwenden. Vor einem weiteren Lauf neue GPU-Verfügbarkeit
   sicherstellen und einen frischen Ausgabeordner sowie Lognamen verwenden.
+
+## 2026-11-11 – Verschachtelte Kalibrierungsausgaben aus Git-Status ausnehmen
+
+- **Befund:** Nach dem Code-Commit zeigte Git noch 30 ungetrackte Einträge.
+  Sie lagen ausschließlich in den erzeugten `mach_calibration*`-
+  Ergebnisordnern (NPZ-Snapshots, Logs, Manifest- und CSV-Dateien). Die
+  vorhandenen `.gitignore`-Muster trafen nur Dateien direkt unter
+  `Praktikum_Datenzubereitung`, nicht Dateien in diesen Unterordnern.
+- **Änderung:** Eine gezielte `.gitignore`-Regel nimmt die
+  `Praktikum_Datenzubereitung/mach_calibration*/`-Ergebnisverzeichnisse aus
+  Git aus. Die lokalen Ergebnisse werden nicht gelöscht; Quellcode wie
+  `calibrate_mach_forcing.py` bleibt weiterhin versionierbar.
+- **Lauf:** Retry-3 in Zellij `gpu13` blieb unberührt und läuft separat weiter.
