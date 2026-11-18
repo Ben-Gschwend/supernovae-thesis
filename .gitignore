@@ -19,3 +19,7 @@ Praktikum_Datenzubereitung/mach_calibration*/
 
 # Local editor and OS files
 .DS_Store
+
+# Local application state (database, cache, logs and private keys)
+/config/
+/Praktikum_Datenzubereitung/fd_riemann_forcing_comparison/medium_nh0p1_legacy_ou.log
