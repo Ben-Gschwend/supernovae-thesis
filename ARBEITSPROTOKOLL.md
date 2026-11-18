@@ -2177,3 +2177,100 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
   Git aus. Die lokalen Ergebnisse werden nicht gelöscht; Quellcode wie
   `calibrate_mach_forcing.py` bleibt weiterhin versionierbar.
 - **Lauf:** Retry-3 in Zellij `gpu13` blieb unberührt und läuft separat weiter.
+
+## 2026-11-11 – CSV des Mediumzustands vor der Supernova exportiert
+
+- **Ziel:** Für die Darstellung des Zustands unmittelbar vor dem Einsetzen der Supernova wurde aus dem turbulenten Medium die zentrale z-Schnittfläche des letzten Snapshots exportiert.
+- **Quelle:** `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_warmism100pc_schure2009_ppweno_gpu5.npz`; letzter gespeicherter Zeitpunkt `t=5.0`, 128³ Zellen, Seed 42.
+- **Ausgabe:** `Praktikum_Datenzubereitung/turbulent_medium_128cells_t5_schure2009_ppweno_gpu5_z64.csv`, 16.384 Zellen in `z_index=64`. Spalten: Zellmittelpunktkoordinaten `x_code,y_code` sowie `rho_code,vx_code,vy_code,vz_code,p_code`. Werte sind in den dimensionslosen Codeeinheiten der NPZ-Datei.
+- **Hinweis:** Das GIF wird aus NPZ-Dateien erzeugt; diese CSV ist ein zusätzlicher Export der Medium-Schnittfläche.
+
+## 2026-11-12 – Velocity-Zeitplots der gültigen Retry-3-Läufe erzeugt
+
+- **Ziel:** Die zeitliche Entwicklung von typischer Geschwindigkeit,
+  Schallgeschwindigkeit und dem Quotienten `<|v|>/<c_s>` für alle gültigen
+  Läufe der Machzahl-Kalibrierung vergleichen.
+- **Datensatz:** `mach_calibration_snapshots_compgpu13_retry3`; verwendet
+  wurden die zehn Experimente mit Status `complete` aus dem Manifest. Die
+  Läufe `nh0p1_amp15` und `nh100_amp15` mit Status `invalid` wurden ausgelassen.
+- **Auswertung:** `plot_mean_velocity.py` las die vorhandenen NPZ-Snapshots
+  CPU-only und erzeugte pro gültigem Lauf eine PNG-Grafik und eine CSV-Datei
+  im selben Ergebnisordner. Dateinamen folgen
+  `mean_velocity_<run_id>.png` beziehungsweise `.csv`.
+- **Interpretationshinweis:** Der Plotter schließt pro Snapshot nicht-endliche
+  Zellen sowie Zellen mit nichtpositiver Dichte oder Druck aus den Mittelwerten
+  aus. Kurven sind damit Mittelwerte über jeweils gültige Zellen.
+- **Prüfung:** Alle zehn Plotaufrufe endeten erfolgreich; keine Simulation,
+  GPU-Auswertung oder Quellcodeänderung wurde vorgenommen.
+
+## 2026-11-12 – Velocity-Zeitplots der zwei ungültigen Retry-3-Läufe ergänzt
+
+- **Ziel:** Die Zeitverläufe der beiden im Manifest als `invalid` markierten
+  Läufe ebenfalls sichtbar machen.
+- **Datensätze:** `medium_nh0p1_amp15.npz` und
+  `medium_nh100_amp15.npz` aus
+  `mach_calibration_snapshots_compgpu13_retry3`.
+- **Auswertung:** `plot_mean_velocity.py` konnte beide vorhandenen Snapshot-
+  Dateien CPU-only verarbeiten. Für jeden Lauf wurden PNG und CSV erzeugt und
+  im VS-Code-Fenster des Projekts geöffnet.
+- **Einschränkung:** Der Plotter maskiert pro Snapshot Zellen mit nicht-endlicher
+  oder nichtpositiver Dichte beziehungsweise Druck. Die Plots visualisieren
+  daher Mittelwerte der jeweils verbleibenden gültigen Zellen; sie heben den
+  Status `invalid` der Läufe nicht auf.
+- **Prüfung:** Beide Plotaufrufe endeten erfolgreich. Keine Simulation,
+  GPU-Auswertung oder Quellcodeänderung wurde vorgenommen.
+
+## 2026-11-12 – Auffällige Velocity-Zeitkurven nachgeprüft
+
+- **Datengrundlage:** CSV-Zeitreihen, gespeicherte interne/kinetische Energie
+  und vollständige Zustands-Snapshots der Läufe `nh10_amp3`, `nh100_amp15`
+  und `nh0p1_amp15`; CPU-only-Auswertung.
+- **`nh10_amp3`:** In keinem gespeicherten Snapshot wurden Zellen durch die
+  Positivitätsmaske des Plotters ausgeschlossen. Zwischen `t=3.750` und
+  `t=3.906` fällt die mittlere Schallgeschwindigkeit von `2.298` auf `2.062`
+  und die interne Energie von `4.752` auf `3.901`; die kinetische Energie
+  steigt nur von `0.336` auf `0.360`. Das weist auf einen starken Abbau
+  thermischer Energie in diesem Intervall hin. Aktives explizites
+  Schure-CIE-Cooling ist eine plausible Erklärung; die genaue Ursache ist
+  ohne Teilschritt-Diagnostik nicht belegt.
+- **`nh100_amp15`:** Bis `t=4.688` wurden keine Zellen ausgeblendet. Im
+  Snapshot `t=5` sind `81.916/2.097.152` Zellen (rund `3,9 %`) nicht positiv
+  beziehungsweise ungültig. Gleichzeitig fällt die mittlere
+  Schallgeschwindigkeit von `7.068` auf `3.215` und die interne Energie von
+  `44.618` auf `9.512`. Der letzte Plotabschnitt ist daher wegen Cooling und
+  des bereits ungültigen Endzustands nicht als belastbarer physikalischer
+  Verlauf zu interpretieren; die Zellmaske beeinflusst zusätzlich den
+  dargestellten Mittelwert.
+- **`nh0p1_amp15`:** Im finalen Zustand ist eine Zelle mit negativem Druck;
+  das beeinflusst den über rund 2,1 Millionen Zellen gebildeten Mittelwert
+  kaum, hebt den Status `invalid` aber nicht auf.
+- **Einschränkung:** Snapshotabstände betragen ungefähr `0.156` Codezeiteinheiten
+  und zeigen nicht, in welchem Integrations- oder Cooling-Teilschritt die
+  Änderung einsetzt. Keine Simulation gestartet und kein Code geändert.
+
+## 2026-11-13 – Velocity-Zeitplots des Machzahl-Sweeps
+
+- **Vorhandene Plots:** Die zwölf Einzelgrafiken `mean_velocity_nh*_amp*.png` lagen bereits im Ordner `Praktikum_Datenzubereitung/mach_calibration_snapshots_compgpu13_retry3`; sie wurden auf Nutzerhinweis wiedergefunden.
+- **Zusätzliche Ausgabe:** Bei der Suche wurden irrtümlich zwölf weitere Einzelplots samt Statistik-CSV unter `velocity_plots_20261113/` erzeugt; außerdem eine 4x3-Übersicht `velocity_overview_12runs.png`. Keine Simulation und keine GPU verwendet.
+- **Gültigkeit:** Die beiden ungültigen Fälle (`n_H=0.1` und `100 cm^-3`, jeweils Forcing 15) sind in der Übersicht markiert. Die Plotroutine maskiert Zellen mit nichtpositiver Dichte oder nichtpositivem Druck; diese Kurven sind daher nur diagnostisch und stellen keine gültigen Resultate dar.
+
+## 2026-11-16 – Ausgabeumfang für Supernova-Vergleich und Trainingsdaten festgelegt
+
+- **Nächster Vergleich:** Die zehn als gültig markierten turbulenten Medien des Machzahl-Sweeps sollen jeweils als Anfangszustand für eine Supernova-Simulation dienen. Für diese Vergleichsläufe genügen die zentralen 2D-z-Schnitte als Plot-Ausgabe; die numerische Integration bleibt vollständig 3D.
+- **Trainingsdaten:** Für spätere Trainingsdatensätze müssen vollständige 3D-Endzustände gespeichert werden. `supernovae_turbolenz.py` speichert derzeit standardmäßig nur zentrale 2D-Schnitte; vor der Trainingsdatenerzeugung ist daher die Ausgabe zu erweitern.
+- **Laufparameter als Arbeitsannahme:** Vorgesehene Werte aus `training_dataset_config.example.json`: `E_SN=10^51 erg`, `duration=0.1`, 120 Snapshots, Explosionsradius `0.03`, `CFL=0.1`, PP-WENO mit REDISTRIBUTE/vacuum_rest und implizites Schure-CIE-Cooling. GPU-Freigabe und Start stehen noch aus.
+
+## 2026-11-16 – Zehn Supernova-Läufe auf gültigen Kalibrierungsmedien gestartet
+
+- **Ziel:** Die zehn im Kalibrierungsmanifest als `complete` markierten turbulenten Medien nacheinander als Anfangszustände für Phase 2 verwenden; die zwei als `invalid` markierten Medien werden ausgeschlossen.
+- **Runner:** Neu erstellt `Praktikum_Datenzubereitung/run_supernovae_on_calibration_media.py`. Er validiert die zehn Eingaben, lädt die `supernova_defaults` aus `training_dataset_config.example.json`, wählt per `autocvd` genau eine freie GPU und protokolliert jeden Lauf mit Status und Validierung in einem Batch-Manifest.
+- **Konfiguration:** `duration=0.1`, `120` Snapshots, `E_SN=10^51 erg`, Radius `0.03`, `smoothing_cells=2`, `CFL=0.1`, PP-WENO plus REDISTRIBUTE/vacuum_rest, implizites Schure-2009-CIE-Cooling und `save_invalid=true`. Phase 1 der Medien hatte explizites Cooling.
+- **Ausgabe:** `Praktikum_Datenzubereitung/mach_calibration_snapshots_compgpu13_retry3/supernova_phase2_10valid/`; pro Lauf zentrale z-Schnittdaten, nicht vollständige 3D-Endzustände. Batch-Log: `supernova_phase2_10valid_autocvd.log`.
+- **GPU-Freigabe und Start:** Nutzer wies an, autocvd zur automatischen Auswahl einer freien GPU einzusetzen. `autocvd` wählte GPU 4. Der serielle Lauf `nh0p1_amp3` wurde am 2026-11-16 gestartet; das Log bestätigte GPU-Backend und Start der vollständigen 3D-Integration.
+- **Prüfung:** CPU-only-Dry-Run fand alle zehn gültigen NPZ-Medien und gab zehn eindeutige Befehle aus. Kein Überschreiben vorhandener Ergebnisse; keine Test-Suite ausgeführt.
+
+## 2026-11-18 – Abschlussstand des Supernova-Vergleichs aus dem Manifest
+
+- Das gespeicherte `supernova_batch_manifest.json` im Ordner `mach_calibration_snapshots_compgpu13_retry3/supernova_phase2_10valid/` weist für alle zehn Läufe einen Endstatus aus. Die Serie endete am 17. November.
+- Sechs Fälle haben den Status `complete`. Vier sind `invalid`: nh0p1_amp3, nh0p1_amp9, nh1_amp9 und nh1_amp15. Die Zuordnung basiert auf der dokumentierten Validierung der Phase-2-Ausgaben. Die Ursache der numerischen Fehler bleibt offen.
+- Die gespeicherten zentralen z-Schnitte dienen dem Vergleich. Für die geplanten 3D-Trainingspaare fehlt die Ausgabe vollständiger 3D-Endzustände. Für diese Bestandsaufnahme wurden das Manifest und die Dokumentation gelesen, keine Simulation und keine erneute numerische Validierung ausgeführt.
