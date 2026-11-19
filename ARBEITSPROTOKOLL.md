@@ -2274,3 +2274,97 @@ Dieses Protokoll dokumentiert den wesentlichen Arbeitsverlauf des Praktikums und
 - Das gespeicherte `supernova_batch_manifest.json` im Ordner `mach_calibration_snapshots_compgpu13_retry3/supernova_phase2_10valid/` weist für alle zehn Läufe einen Endstatus aus. Die Serie endete am 17. November.
 - Sechs Fälle haben den Status `complete`. Vier sind `invalid`: nh0p1_amp3, nh0p1_amp9, nh1_amp9 und nh1_amp15. Die Zuordnung basiert auf der dokumentierten Validierung der Phase-2-Ausgaben. Die Ursache der numerischen Fehler bleibt offen.
 - Die gespeicherten zentralen z-Schnitte dienen dem Vergleich. Für die geplanten 3D-Trainingspaare fehlt die Ausgabe vollständiger 3D-Endzustände. Für diese Bestandsaufnahme wurden das Manifest und die Dokumentation gelesen, keine Simulation und keine erneute numerische Validierung ausgeführt.
+
+## 2026-11-18 – Wiederholte Verbindungsabbrüche bei VS Code untersucht
+
+- Die persönlichen VS-Code-Serverprotokolle melden um 11:30, 11:47, 12:16, 16:04 und 16:18 Uhr den Verlust der Clientverbindung. Daneben sind reguläre Sitzungsenden verzeichnet. Die Zuordnung zu den vom Nutzer bemerkten Abbrüchen bleibt offen.
+- Der VS-Code-Server registrierte um 16:18:17 einen Verbindungsverlust und nahm um 16:18:33 eine neue Verbindung an. Die fünfminütige Aufräumfrist für die alte Sitzung lief um 16:23:33 ab. Zu diesem Zeitpunkt erschien auch die Meldung `Unexpected SIGPIPE`.
+- Der untersuchte Host `compgpu14` lief seit dem 10. November. Laut atop waren zwischen 16:10 und 16:20 im Mittel rund 97 % der CPU-Kapazität frei. Bei der Messung um 16:20 waren rund zwei Drittel des Arbeitsspeichers frei.
+- Die Serverprotokolle lassen die Ursache des ersten Verbindungsverlusts offen. Das SSH-Systemprotokoll ist mit dem Projektkonto nicht lesbar. Für die Zuordnung fehlt die lokale Remote-SSH-Ausgabe zum selben Zeitpunkt.
+
+## 2026-11-18 – Wiederverbindung mit dem Protokoll des Macs abgeglichen
+
+- Laut lokalem Remote-SSH-Protokoll begann um 16:18:29 ein neuer SSH-Verbindungsaufbau, rund elf Sekunden nach dem vom Server erfassten Abbruch. Die Passwortanmeldung gelang um 16:18:32. Um 16:18:33 stand der Tunnel, und VS Code fand den laufenden Serverprozess.
+- Der Ausschnitt erklärt die erneute Passwortabfrage. Er enthält keine Meldung der vorherigen Sitzung zum Zeitpunkt der Trennung. Der ursprüngliche Auslöser bleibt offen.
+
+## 2026-11-19 - Machzahl-Sweep korrigiert und Fortsetzung gestartet
+
+- **Ziel und feste Konfiguration:** Kalibrierung der Machzahl fuer TurbGen-Medien mit solenoidalem Forcing. Geplant sind 20 Kombinationen aus physikalischer Wasserstoffzahldichte `n_H = 0.1, 1, 10, 100 cm^-3` und `driving_velocity = 1, 1.5, 2, 2.5, 3`. Gemeinsam: 128^3 Zellen, Boxgroesse 1, `t_end=2`, 33 Snapshots, `gamma=5/3`, Seed 42, FD-Riemann, implizites Schure-2009-CIE-Cooling, `CFL=1`.
+- **Gewuenschte Messgroessen:** Machzahl am letzten gespeicherten Zeitpunkt sowie zeitlicher Mittelwert zwischen `t=1.5` und `t=2` der raeumlich gemittelten lokalen Machzahl. Die Resultate sollen als CSV-Tabelle neben NPZ-Ausgaben und einem Batch-Manifest landen.
+- **Erster Versuch und Ursache des Abbruchs:** `nh0p1_dv1` hatte die Integration bis `t=2` beendet und eine NPZ-Datei geschrieben. Die Auswertung brach ab, weil sie `primitive_state` als Zeitreihe behandelte. Im Dateiformat ist `primitive_state` nur der Endzustand mit Form `(5,128,128,128)`; alle gespeicherten Zeitpunkte liegen in `states` mit Form `(33,5,128,128,128)`, die Zeiten in `time_points` mit Form `(33,)`. Die Simulation selbst war nicht der Ausloeser.
+- **Korrektur und Wiederaufnahme:** Der korrigierte Fortsetzungslauf liest die Snapshots aus `states`, berechnet daraus die Mach-Statistik und soll den bereits geschriebenen Fall `nh0p1_dv1` wiederverwenden. Die uebrigen Faelle werden fortgesetzt; Manifest und CSV werden laufweise aktualisiert.
+- **Aktueller Status:** Der Sweep-Fortsetzungslauf laeuft in Zellij `gpu14`, Pane `terminal_75`, wartet aber bei `autocvd` auf eine freie GPU (`0/1 GPU(s) available`). Eine GPU-Ausfuehrung des korrigierten Sweeps ist noch nicht bestaetigt. Bislang vorhanden sind NPZ und Log fuer `nh0p1_dv1` sowie das Batch-Manifest; Mach-Auswertung/CSV sind noch nicht fertig.
+
+## 2026-11-19 - Supernovae-Kontrolllauf mit einheitlichem Positivitaetsschutz angefordert
+
+- Im Vergleichsordner `fd_riemann_forcing_comparison_batch2/supernova_nh100_protection_cfl_compare_20261119/` liegen zwei beendete, als gueltig gepruefte Simulationen (Metadaten gueltig, endliche Werte, positive Dichte und positiver Druck, monotone Zeiten): CFL 1 mit zusaetzlich gesetztem harten Positivitaets-Floor und Step-Retry sowie CFL 0.1 ohne diese zusaetzlichen Optionen. Beide nutzen FD-Riemann und implizites Schure-CIE-Cooling.
+- Auf Nutzerwunsch wird CFL 1 mit denselben Standardoptionen wie bei den anderen Laeufen erneut gerechnet. `PositivityConfig()` bedeutet hier keine zusaetzlichen per-step Floor-/Retry-Optionen; die solverseitige Positivitaetsbehandlung von FD-Riemann bleibt aktiv. Der bisherige CFL-1-Lauf mit Zusatzoptionen bleibt als separater Vergleich erhalten.
+- **Aktueller Status:** Der korrigierte CFL-1-Lauf wartet in Zellij `gpu14`, Pane `terminal_73`, bei `autocvd` auf eine freie GPU (`0/1 GPU(s) available`). Start und Abschluss sind noch nicht bestaetigt.
+
+## 2026-11-19 - Stand der Supernova-Animationen
+
+- Fuenf GIFs der gueltigen Supernova-Laeufe liegen unter `Praktikum_Datenzubereitung/supernova_5valid_gifs_fdriemann_implicit_cfl1/`: `nh0p1_amp3`, `nh0p1_amp9`, `nh1_amp9`, `nh1_amp15` und `new_nh0p1_legacy_ou`.
+- GIFs der beiden NH100-Vergleichslaeufe liegen unter `fd_riemann_forcing_comparison_batch2/supernova_nh100_protection_cfl_compare_20261119/`. Die bisher erzeugten Animationen zeigen separat Dichte; sie wurden nicht mit dem Projekt-Plotprogramm erstellt, das Dichte, Druck und Geschwindigkeit gemeinsam darstellt. Eine Neuerstellung mit der vorgesehenen Projekt-Plotroutine ist noch offen.
+
+## 2026-11-19 - NH100 CFL=0.1 Kontrolllauf neu gestartet
+
+- Der CFL=1-Lauf mit Standard-Positivitaetskonfiguration wurde validiert: Metadaten melden `valid=False`; Werte sind endlich, aber mindestens Dichte oder Druck ist nicht ueberall positiv. Die Konfiguration hatte keine zusaetzlichen per-step Floors oder Step-Retries.
+- Auf Nutzerwunsch wurde derselbe Supernova-Fall mit CFL=0.1 neu gestartet. Geaendert wurde nur der CFL-Wert; beibehalten: dasselbe NH100-Eingabemedium `nh100_legacy_ou_implicit_cfl1_1.npz`, FD-Riemann, implizites Schure-2009-CIE-Cooling, Standard-Positivitaetskonfiguration, Dauer 0.1, 120 Snapshots, Explosionsenergie `1e51 erg`, Radius 0.03 und 2 Glaettungszellen.
+- `autocvd` waehlt GPU 4. Beim Start wurden CUDA/PALLAS erkannt; der Lauf begann die 3D-Integration. Beim letzten Statuscheck stand er bei rund 19.5 % (`t=0.0195/0.1`); GPU 4 war mit rund 8.9 GiB und 96 % Auslastung belegt.
+- Zellij: neuer Tab `nh100-cfl0p1` in Sitzung `gpu14`, mit nur einem Pane. Ergebnis und Log liegen geplant unter `/tmp/fd_riemann_forcing_comparison_batch2/supernova_nh100_protection_cfl_compare_20261119/nh100_fdriemann_implicit_cfl0p1_default_positivity_rerun.npz` und entsprechendem `.log`.
+- Der vorhandene CFL=0.1-Lauf `no_protection` bleibt unveraendert; dieser neue Lauf ist eine separate Wiederholung mit eigenem Ausgabepfad.
+
+- **Fortschritt bei letzter Kontrolle:** Der CFL=0.1-Lauf war bei 57 % (`t=0.0570/0.1`) und lief auf GPU 4 mit rund 8.9 GiB VRAM und 96 % Auslastung. Er war zu diesem Zeitpunkt noch nicht abgeschlossen.
+
+## 2026-11-19 - Validierung der CFL=0.1-Wiederholung
+
+- Die CFL=0.1-Ausgabe ist gueltig: NPZ-Metadaten `valid=True`; Dichte, Druck und Zeiten sind endlich; Dichte und Druck sind ueberall positiv; Zeitpunkte sind streng monoton. Gespeichert sind 120 Snapshots bis zur absoluten Zeit `5.1000000015`.
+
+## 2026-11-19 - Projekt-GIF fuer den gueltigen CFL=0.1-Lauf erstellt
+
+- Verwendet wurde die Projektdatei `Praktikum_Datenzubereitung/plot_supernovae_turbolenz.py`, nicht eine separate Ad-hoc-Animation. Sie kombiniert die Medium-Snapshots mit dem Supernova-Ergebnis und stellt Dichte, Druck sowie Geschwindigkeitsvektoren dar.
+- Eingaben: `nh100_legacy_ou_implicit_cfl1_1.npz` als Medium und `nh100_fdriemann_implicit_cfl0p1_default_positivity_rerun.npz` als Supernova.
+- Ausgabe: `/tmp/fd_riemann_forcing_comparison_batch2/supernova_nh100_protection_cfl_compare_20261119/projektplot_cfl0p1_default_positivity_rerun.gif` (29 MB). Der Plotter beendete sich ohne Fehler und bestaetigte die gespeicherte kombinierte Animation.
+
+- Eine Kopie fuer den direkten Zugriff im Projekt liegt unter `Praktikum_Datenzubereitung/supernova_nh100_cfl_comparison_20261119/projektplot_cfl0p1_default_positivity_rerun.gif` (29 MB).
+
+## 2026-11-19 - Sechs Supernova-Wiederholungen und Machzahl-Sweep aktualisiert
+
+- Das finale Manifest `supernova_6cases_fdriemann_implicit_cfl1_retry3/batch_manifest.json` weist fuenf gueltige Laeufe aus: `nh0p1_amp3`, `nh0p1_amp9`, `nh1_amp9`, `nh1_amp15` und `new_nh0p1_legacy_ou`. Der sechste Fall `new_nh100_legacy_ou_implicit_cfl1` ist ungueltig: Metadaten, endliche Werte und monotone Zeiten sind gueltig, aber Dichte/Druck sind nicht ueberall positiv. Fuer die fuenf gueltigen Faelle wurden Projekt-GIFs erstellt.
+- Der fortgesetzte 20-Fall-Machzahl-Sweep hat in Pane `terminal_75` die ersten 17 Faelle als `complete` ausgewiesen. Noch offen sind die drei driving-velocity-Faelle 2.0, 2.5 und 3.0 bei `n_H=100 cm^-3`; der Runner wartete beim letzten Blick auf eine GPU. Die bisherigen End-Machzahlen reichen ungefaehr von 0.4 bis 2.97.
+
+## 2026-11-19 - GIFs fuer zwoelf gueltige Mediumlaeufe gesammelt
+
+- Mit `Praktikum_Datenzubereitung/plot_anfangsmedium.py` wurden GIFs mit Dichte, Druck und Geschwindigkeitsvektoren erstellt. Alle liegen zusammen in `Praktikum_Datenzubereitung/medium_12_valid_gifs_20261119/`; der Ordner enthaelt zwoelf Dateien mit insgesamt rund 87 MB.
+- Die Auswahl umfasst die zehn als gueltig markierten Originalmedien (Amplitude 15 bei `n_H=0.1` und `100 cm^-3` ausgeschlossen) sowie die zwei neu erzeugten gueltigen Ersatzmedien `nh0p1_legacy_ou` und `nh100_legacy_ou`. Die urspruenglichen beiden NPZ-Dateien bleiben im alten Manifest als ungueltig markiert und wurden nicht als gueltige Medien geplottet.
+
+## 2026-11-19 - CFL=0.1-Wiederholungen der drei ungueltigen TurbGen-Medien vorbereitet
+
+- **Ziel:** Den Einfluss der CFL-Zahl auf die drei bei CFL=1 ungueltigen Mediumlaeufe bei `n_H=100 cm^-3` untersuchen.
+- **Faelle:** TurbGen-Zielgeschwindigkeiten `2.0`, `2.5` und `3.0`; jeweils `128^3` Zellen, periodische Randbedingungen, Boxlaenge 100 pc, Referenztemperatur 10000 K, `gamma=5/3`, Seed 42, `t=0...2`, 33 Snapshots, solenoidales TurbGen-Forcing mit `k_min=2`, `k_max=6`, `k_driving=0.6`, Amplitudenfaktor 1 und 10 Forcing-Schritte pro Turnover sowie FD-Riemann und implizites Schure-2009-CIE-Cooling. Gegenueber den CFL=1-Laeufen soll nur `CFL=0.1` geaendert werden.
+- **Vorgesehene Ausgabe:** Neuer Ordner `Praktikum_Datenzubereitung/mach_turbgen_solenoidal_implicit_cfl0p1_t2_20261119/`; NPZ-Dateien und Logs erhalten je Fall eigene Namen. Die CFL=1-Ergebnisse bleiben unveraendert.
+- **Ausfuehrungsstatus:** Noch nicht gestartet. Gemaess der dokumentierten Startregel startet Codex keine Simulation; der Nutzer startet die drei Laeufe manuell auf einer freigegebenen GPU. Der konkrete GPU-Identifier ist offen.
+- **Naechster Schritt:** Die drei Laeufe seriell mit `CFL=0.1` ausfuehren und danach Endzustand, Snapshotzeiten, endliche Werte sowie positive Dichte und positiven Druck pruefen. Ein gueltiger Lauf soll anschliessend in einer separaten CSV-/Manifestauswertung als gueltig markiert werden; ungueltige Rohdaten bleiben erhalten.
+
+## 2026-11-19 - CFL=0.1-Lauf gestartet und nach Laufzeithinweis pausiert
+
+- **Startfreigabe:** Der Nutzer bat Codex, die Wiederholungen in Zellij zu starten und bestaetigte, dass `autocvd` eine freie GPU auswaehlen darf. `autocvd` waehlt GPU 4.
+- **Erster Startversuch:** Der Lauf lud wegen eines Modulpfadfehlers die alte Projektdatei statt des TurbGen-Overlays und endete vor der Integration. Log und Manifest bleiben in `mach_turbgen_solenoidal_implicit_cfl0p1_t2_20261119/` erhalten; es wurde keine Simulation gestartet.
+- **Korrigierter Start:** Das Overlay wurde als Python-Paket aufgeloest; `nh100p0_dv2p0` startete mit PALLAS auf GPU 4 und erreichte `t=0.110044/2` (5,5 %). Wegen der bei CFL 0,1 gegenueber CFL 1 etwa zehnmal kleineren Zeitschritte wurde dem Nutzer ein voraussichtlich mehrstuendiger Gesamtaufwand fuer drei Faelle genannt.
+- **Pausierung:** Der Nutzer hatte den Aufwand noch nicht bestaetigt; der Prozess wurde mit Ctrl-C angehalten. Es wurde keine NPZ-Ergebnisdatei geschrieben. GPU 4 war bei der anschliessenden Kontrolle wieder ohne Prozessbelegung.
+- **Ausgaben:** Der abgebrochene Versuch ist unter `mach_turbgen_solenoidal_implicit_cfl0p1_t2_20261119_retry2/` dokumentiert. Die Script-Ausgabe fuer eine bestaetigte Fortsetzung ist auf einen neuen, separaten Ordner `..._retry3/` gesetzt, damit keine Logs oder Manifeste ueberschrieben werden.
+- **Offen:** Fortsetzung der drei seriellen Laeufe nach Bestaetigung des mehrstuendigen Aufwands.
+
+## 2026-11-19 - CFL=0.1-Wiederholungen nach Aufwandsbestaetigung gestartet
+
+- **Freigabe:** Der Nutzer bestaetigte nach Hinweis auf voraussichtlich rund 35-40 Minuten pro Fall beziehungsweise etwa zwei Stunden fuer drei serielle Laeufe die Fortsetzung. `autocvd` darf eine freie GPU automatisch waehlen.
+- **Korrektur nach dem ersten Importfehler:** Das Python-Modul wird nun mit dem TurbGen-Overlay als Arbeitsverzeichnis gestartet. Der fehlgeschlagene Importversuch und der vor Bestaetigung abgebrochene Teilversuch bleiben in den separaten Ordnern `mach_turbgen_solenoidal_implicit_cfl0p1_t2_20261119/` und `..._retry2/` erhalten.
+- **Runner:** `Praktikum_Datenzubereitung/run_turbgen_cfl_repeats.py` fuehrt die Faelle `dv=2.0, 2.5, 3.0` seriell mit `CFL=0.1` aus, streamt die Logs in Zellij und schreibt Manifest sowie Machzahl-CSV. Ausgabeordner ist `Praktikum_Datenzubereitung/mach_turbgen_solenoidal_implicit_cfl0p1_t2_20261119_retry3/`.
+- **Startstatus:** Zellij-Sitzung `gpu14`, Pane `terminal_90`; `autocvd` waehlt GPU 4 (A100). Der Fall `nh100p0_dv2p0` hat begonnen; beim ersten Statuscheck stand er bei `t=0.000201718/2`. Die beiden anderen Faelle stehen aus. Noch keine NPZ-Ergebnisse oder Machzahlmessungen.
+- **Startzeit:** 2026-11-19 14:23:49 UTC laut Manifest.
+
+## 2026-11-19 - Zwoelf gueltige Supernova-GIFs in einem Ordner gesammelt
+
+- Nach Klarstellung des Nutzers ist die gewuenschte Auswahl die zwoelf final gueltigen Supernova-Ergebnisse, nicht die zwoelf Anfangsmedien. Die sechs gueltigen Original-Phase-2-Laeufe, fuenf gueltigen FD-Riemann-Wiederholungen aus `retry3` und der gueltige NH100-CFL=0.1-Standardlauf ergeben zusammen zwoelf Ergebnisse.
+- Alle zwoelf GIFs liegen in `Praktikum_Datenzubereitung/supernova_12_valid_gifs_projectplot_20261119/`. Sechs bereits mit dem Projektplotter erzeugte GIFs wurden uebernommen; die sechs fehlenden wurden mit `plot_supernovae_turbolenz.py` gerendert. Jedes zeigt das Medium zusammen mit der Supernova, mit Dichte, Druck und Geschwindigkeitsvektoren.
+- Die zuvor erstellten GIFs der zwoelf Anfangsmedien sind eine getrennte Ausgabe und gehoeren nicht zu dieser Supernova-Auswahl.
